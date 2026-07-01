@@ -1,0 +1,67 @@
+@reference "tailwindcss";
+
+.analytics-wrapper {
+    @apply p-6 w-full space-y-6;
+}
+
+/* Premium Page Layout Header */
+.analytics-header {
+    @apply flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-slate-100;
+}
+
+.analytics-title {
+    @apply text-2xl font-bold text-slate-900 tracking-tight;
+}
+
+.analytics-subtitle {
+    @apply text-sm text-slate-500 mt-1;
+}
+
+/* Control Row for selecting stations */
+.analytics-controls {
+    @apply flex flex-wrap items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm;
+}
+
+.control-label {
+    @apply text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1.5;
+}
+
+.station-dropdown-select {
+    @apply bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-3.5 py-2 w-64
+    font-medium focus:outline-none focus:border-emerald-500 transition-colors duration-200 cursor-pointer;
+}
+
+/* Interactive Data Grid & Visualization Box Layout */
+.chart-card-container {
+    @apply bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4;
+}
+
+.chart-title-bar {
+    @apply flex items-center justify-between pb-2 border-b border-slate-50;
+}
+
+.chart-title-text {
+    @apply text-base font-bold text-slate-800 tracking-tight flex items-center gap-2;
+}
+
+/* Canvas Area Container */
+.chart-canvas-box {
+    @apply relative w-full h-[380px] mt-4;
+}
+
+/* Stats Summary Cards for the selected Station */
+.stats-summary-strip {
+    @apply grid grid-cols-2 lg:grid-cols-4 gap-4;
+}
+
+.stat-box-mini {
+    @apply bg-white p-4 rounded-xl border border-slate-100 shadow-sm;
+}
+
+.stat-box-label {
+    @apply text-[10px] font-bold text-slate-400 uppercase tracking-wider block;
+}
+
+.stat-box-value {
+    @apply text-xl font-bold text-slate-900 mt-1 block tracking-tight;
+}

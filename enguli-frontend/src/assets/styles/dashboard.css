@@ -1,0 +1,70 @@
+/* src/assets/styles/dashboard.css */
+@reference "tailwindcss";
+
+.dashboard-wrapper {
+    @apply p-6 w-full space-y-6;
+}
+
+/* Premium Header Elements */
+.page-header {
+    @apply flex flex-col md:flex-row md:items-center md:justify-between pb-2 border-b border-slate-100;
+}
+
+.header-title {
+    @apply text-2xl font-bold text-slate-900 tracking-tight;
+}
+
+.header-subtitle {
+    @apply text-sm text-slate-500 mt-1;
+}
+
+/* High-End Analytics Stat Grid */
+.metrics-grid {
+    @apply grid grid-cols-1 md:grid-cols-3 gap-5;
+}
+
+.metric-card {
+    @apply bg-white p-5 rounded-2xl border border-slate-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5;
+}
+
+.metric-label {
+    @apply text-xs font-semibold text-slate-400 uppercase tracking-wider block;
+}
+
+.metric-value {
+    @apply text-3xl font-bold text-slate-900 tracking-tight mt-2 block;
+}
+
+/* Alert Notification Dashboard Module */
+.alerts-container {
+    @apply bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mt-6;
+}
+
+.alerts-header {
+    @apply px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50;
+}
+
+.alerts-title-text {
+    @apply text-sm font-bold text-slate-800 tracking-tight flex items-center gap-2;
+}
+
+.alerts-list {
+    @apply divide-y divide-slate-100;
+}
+
+.alert-row-item {
+    @apply p-5 flex items-start gap-4 transition-colors duration-150 hover:bg-slate-50/40;
+}
+
+/* Alert Severity Badge Pill Signifiers */
+.badge-critical {
+    @apply bg-rose-50 text-rose-700 border border-rose-100 text-xs px-2.5 py-1 rounded-full font-semibold;
+}
+
+.badge-high {
+    @apply bg-amber-50 text-amber-700 border border-amber-100 text-xs px-2.5 py-1 rounded-full font-semibold;
+}
+
+.badge-medium {
+    @apply bg-blue-50 text-blue-700 border border-blue-100 text-xs px-2.5 py-1 rounded-full font-semibold;
+}

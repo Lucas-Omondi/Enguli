@@ -1,0 +1,73 @@
+@reference "tailwindcss";
+
+/* Full view limits - Clears out the unwanted grey side padding bands */
+.app-viewport {
+    @apply min-h-screen bg-slate-50 flex flex-col font-sans antialiased;
+}
+
+.workspace-wrapper {
+    @apply flex flex-1 overflow-hidden relative;
+}
+
+/* Scrollable Inner Canvas Main Body Window */
+.main-content-window {
+    @apply flex-1 h-[calc(100vh-4rem)] overflow-y-auto bg-slate-50/50 w-full transition-all duration-300;
+}
+
+/* Premium Sidebar Shell Box Styling */
+.sidebar-container {
+    @apply bg-slate-950 h-[calc(100vh-4rem)] flex flex-col justify-between border-r border-slate-900
+    transition-all duration-300 ease-in-out z-40 shrink-0;
+}
+
+/* Width Control Modifiers for Expanding/Collapsing states */
+.sidebar-expanded {
+    @apply w-64;
+}
+
+.sidebar-collapsed {
+    @apply w-16;
+}
+
+/* Sidebar Nav Items Container Row */
+.sidebar-nav-list {
+    @apply p-3 space-y-1.5;
+}
+
+.sidebar-nav-heading {
+    @apply px-3 text-[10px] font-bold tracking-wider text-slate-500 uppercase block mb-3 whitespace-nowrap overflow-hidden;
+}
+
+/* Link pill row button */
+.sidebar-menu-btn {
+    @apply flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200  relative whitespace-nowrap;
+}
+
+.sidebar-btn-active {
+    @apply bg-emerald-600 text-white shadow-md shadow-emerald-900/20;
+}
+
+.sidebar-btn-inactive {
+    @apply text-slate-400 hover:bg-slate-900 hover:text-slate-100;
+}
+
+/* Collapsible Label Text Wrapper */
+.sidebar-link-text {
+    @apply transition-opacity duration-200 ml-3.5;
+}
+
+/* Collapsible Sidebar Header - Anchors the trigger button completely to the top right */
+.sidebar-toggle-header {
+    @apply p-4 border-b border-slate-900/60 flex items-center justify-between min-h-[57px];
+}
+
+/* Menu Burger / X Trigger Button Styles */
+.nav-trigger-action-btn {
+    @apply h-8 w-8 rounded-lg flex items-center justify-center text-slate-400
+    hover:bg-slate-900 hover:text-white transition-all duration-200 cursor-pointer;
+}
+
+/* Sticky Navbar Box Wrapper */
+.navbar-strip {
+    @apply h-16 bg-white border-b border-slate-100 px-6 flex items-center justify-between sticky top-0 z-50;
+}

@@ -1,0 +1,75 @@
+@reference "tailwindcss";
+.tables-view-wrapper {
+    @apply p-6 w-full space-y-6;
+}
+
+/* Premium Top Header Layer */
+.tables-header-container {
+    @apply flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-slate-100;
+}
+
+.tables-main-title {
+    @apply text-2xl font-bold text-slate-900 tracking-tight;
+}
+
+.tables-subtitle-text {
+    @apply text-sm text-slate-500 mt-1;
+}
+
+/* Overview Summary Row Widgets */
+.table-summary-grid {
+    @apply grid grid-cols-1 sm:grid-cols-3 gap-4;
+}
+
+.summary-widget-card {
+    @apply bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between;
+}
+
+.widget-text-left {
+    @apply space-y-1;
+}
+
+.widget-label-title {
+    @apply text-[10px] font-bold text-slate-400 uppercase tracking-wider block;
+}
+
+.widget-numeric-value {
+    @apply text-2xl font-bold text-slate-900 tracking-tight block;
+}
+
+.widget-icon-frame {
+    @apply h-10 w-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-500 text-sm;
+}
+
+/* Pure White Data Table Box Wrapper */
+.data-table-card {
+    @apply bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden;
+}
+
+/* Table Layout Container Element */
+.custom-table-element {
+    @apply w-full text-left border-collapse;
+}
+
+/* Table Header Strip Cells */
+.table-header-cell {
+    @apply px-6 py-4 bg-slate-50/70 text-slate-500 font-semibold text-xs uppercase tracking-wider border-b border-slate-100;
+}
+
+/* Table Body Data Rows */
+.table-row-interactive {
+    @apply border-b border-slate-50 transition-colors duration-150 hover:bg-slate-50/40;
+}
+
+.table-data-cell {
+    @apply px-6 py-4.5 text-sm text-slate-700 font-medium align-middle;
+}
+
+/* Contextual Inline Tags for Table Grid Values */
+.table-badge-critical {
+    @apply inline-flex items-center gap-1 bg-rose-50 text-rose-700 border border-rose-100 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider;
+}
+
+.table-badge-optimal {
+    @apply inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider;
+}

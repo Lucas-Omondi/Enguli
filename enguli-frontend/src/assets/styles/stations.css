@@ -1,0 +1,88 @@
+@reference "tailwindcss";
+.stations-view-split-layout {
+    @apply flex h-[calc(100vh-4rem)] w-full overflow-hidden bg-slate-50/50;
+}
+
+/* Map Column Panel */
+.map-canvas-panel {
+    @apply flex-1 h-full w-full relative z-0;
+}
+
+/* Side Inspector Details Panel */
+.station-inspector-panel {
+    @apply w-[420px] h-full bg-white border-l border-slate-100 flex flex-col justify-between shadow-xl shadow-slate-200/40 shrink-0 z-10;
+}
+
+/* The custom popups drawn inside the map engine */
+.leaflet-popup-content-wrapper {
+    @apply rounded-xl border border-slate-100 font-sans shadow-md p-1;
+}
+
+/* Inspector Header Elements */
+.inspector-header-box {
+    @apply p-5 border-b border-slate-100;
+}
+
+.inspector-title-badge-row {
+    @apply flex items-center justify-between mb-2;
+}
+
+.inspector-station-code {
+    @apply text-lg font-bold text-slate-900 tracking-tight;
+}
+
+.inspector-station-name {
+    @apply text-sm font-semibold text-slate-700 tracking-tight;
+}
+
+.inspector-location-desc {
+    @apply text-xs text-slate-500 mt-2 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100/60 block;
+}
+
+/* Hardware Asset Metrics Diagnostics Box Grid */
+.inspector-body-scroll {
+    @apply p-5 space-y-5 flex-1 overflow-y-auto;
+}
+
+.hardware-diagnostics-card {
+    @apply p-4 rounded-2xl border border-slate-100 bg-white space-y-3 shadow-sm;
+}
+
+.diagnostics-card-title {
+    @apply text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-slate-50;
+}
+
+.diagnostic-data-row {
+    @apply flex items-center justify-between text-xs py-0.5;
+}
+
+.diagnostic-label {
+    @apply text-slate-500 font-medium;
+}
+
+.diagnostic-value {
+    @apply text-slate-800 font-bold tracking-tight;
+}
+
+/* Action Trigger Navigation Tray Bottom */
+.inspector-action-footer {
+    @apply p-5 border-t border-slate-100 bg-slate-50/50 flex items-center gap-3;
+}
+
+.pivot-analytics-btn {
+    @apply w-full bg-slate-900 text-white font-semibold text-xs py-3 px-4 rounded-xl shadow-md
+    hover:bg-slate-800 text-center transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer;
+}
+
+/* Dynamic State Status Pills Mapping */
+.status-pill-active {
+    @apply bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider;
+}
+
+.status-pill-maintenance {
+    @apply bg-amber-50 text-amber-700 border border-amber-100 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider;
+}
+
+.status-pill-inactive {
+    @apply bg-slate-100 text-slate-600 border border-slate-200 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider;
+}
