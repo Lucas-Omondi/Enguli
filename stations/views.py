@@ -11,7 +11,7 @@ class StationViewSet(viewsets.ModelViewSet):
     serializer_class = StationSerializer
 
 class SensorViewSet(viewsets.ModelViewSet):
-    queryset = Sensor.objects.all().order_by('-created_at')
+    queryset = Sensor.objects.select_related('station').all().order_by('-created_at')
     serializer_class = SensorSerializer
 
     def get_queryset(self):
