@@ -148,7 +148,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # When deploying to production, allow your local ports + any live Vercel frontend domains
 CORS_ALLOWED_ORIGINS = [
     "https://*.onrender.com",
-    "https://enguligroundwater.vercel.app/",
+    "https://enguligroundwater.vercel.app",
     "http://localhost:5173",
     "http://localhost:5174",
     "http://127.0.0.1:5173",
