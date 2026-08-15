@@ -1,8 +1,12 @@
 import axios from 'axios';
 
+// Dynamically use the Vercel environment variable in production,
+// falling back to local Django development server when run locally
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+
 const api = axios.create({
-    baseURL: 'http://127.0.0.1:8000/api',
-    timeout: 10000,
+    baseURL: API_BASE_URL,
+    timeout: 15000, // 15s timeout accounts for Render free-tier cold starts
     headers: {
         'Content-Type': 'application/json',
     }
@@ -17,25 +21,22 @@ export default {
     // Fetch master sensor list or filter by station
     getSensors(stationId = null) {
         const params = stationId ? { station_id: stationId } : {};
-        return api.get('/sensors/', { params }); // Handles tracking master diagnostics
+        return api.get('/sensors/', { params });
     },
 
     // Get aggregated stats for the dashboard summary cards
     getStationAnalytics(stationId) {
-        // Appended trailing slash to match typical Django route processing safely
         return api.get(`/analytics/stations/${stationId}/`);
     },
 
     // Fetch alerts flagged as active/unresolved
     getActiveAlerts() {
-        // Updated path from '/alerts/alerts/' to '/alerts/' to match your router inclusion
         return api.get('/alerts/', { params: { resolved: 'false' } });
     },
+
+    // Fetch telemetry logs
     async getTelemetryLogs(stationId = null) {
-        let url = '/telemetry/logs/';
-        if (stationId) {
-            url += `?station_id=${stationId}`;
-        }
-        return api.get(url);
+        const params = stationId ? { station_id: stationId } : {};
+        return api.get('/telemetry/logs/', { params });
     }
 };
