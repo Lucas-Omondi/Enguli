@@ -87,9 +87,6 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # ==========================================
 # 3. DATABASE CONFIGURATION (DUAL-MODE)
 # ==========================================
-# If DATABASE_URL is set (Render/Neon), parse it with SSL.
-# Otherwise, fall back to your local PostgreSQL setup automatically.
-
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
 if DATABASE_URL:
@@ -103,15 +100,10 @@ if DATABASE_URL:
 else:
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'enguli_db',
-            'USER': 'postgres',
-            'PASSWORD': 'Keystone',
-            'HOST': 'localhost',
-            'PORT': '5432',
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
-
 
 # ==========================================
 # 4. PASSWORD VALIDATION & LOCALIZATION
