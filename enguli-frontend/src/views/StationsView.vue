@@ -1,8 +1,16 @@
 <template>
   <div class="stations-view-split-layout">
-    <!-- Map Canvas Panel -->
+    <!-- Map Canvas Panel with Action Overlay -->
     <div class="map-container-wrapper">
       <div ref="mapContainer" class="map-canvas-panel"></div>
+
+      <!-- Management Quick Action Header (Only for Admin / Field Engineer) -->
+      <div v-if="authStore.canManageHardware" class="map-actions-overlay">
+        <button @click="showAddStationModal = true" class="action-btn primary-action-btn">
+          <i class="pi pi-plus text-xs"></i>
+          <span>Add Station</span>
+        </button>
+      </div>
     </div>
 
     <!-- Station Inspector Panel -->
@@ -36,17 +44,24 @@
 
         <!-- Telemetry Sensor Asset Details -->
         <div class="hardware-diagnostics-card" v-if="activeSensor">
-          <h4 class="diagnostics-card-title">Telemetry Sensor Asset</h4>
+          <div class="flex items-center justify-between mb-1">
+            <h4 class="diagnostics-card-title m-0">Telemetry Sensor Asset</h4>
+            <span class="sensor-count-badge">{{ activeStation.sensors?.length || 1 }} Linked</span>
+          </div>
+          <div class="diagnostic-data-row">
+            <span class="diagnostic-label">Sensor Code</span>
+            <span class="diagnostic-value">{{ activeSensor.sensor_code || '---' }}</span>
+          </div>
           <div class="diagnostic-data-row">
             <span class="diagnostic-label">Sensor Type</span>
             <span class="diagnostic-value capitalize">{{ activeSensor.sensor_type }}</span>
           </div>
           <div class="diagnostic-data-row">
-            <span class="diagnostic-label">Hardware Serial Number</span>
+            <span class="diagnostic-label">Hardware Serial</span>
             <span class="diagnostic-value font-mono">{{ activeSensor.serial_number }}</span>
           </div>
           <div class="diagnostic-data-row">
-            <span class="diagnostic-label">Calibration Offset Height (H)</span>
+            <span class="diagnostic-label">Offset Height (H)</span>
             <span class="diagnostic-value text-sage">{{ activeSensor.calibration_offset?.toFixed(2) }}m</span>
           </div>
           <div class="diagnostic-data-row border-top-divider">
@@ -60,8 +75,25 @@
 
         <!-- Unlinked Sensor State -->
         <div class="empty-sensor-card" v-else>
-          <i class="pi pi-info-circle mr-1"></i> No hardware sensor profile linked to this station.
+          <p class="m-0 mb-2">No hardware sensor profile linked to this station.</p>
+          <button
+              v-if="authStore.canManageHardware"
+              @click="openAddSensorModal"
+              class="action-btn secondary-action-btn"
+          >
+            <i class="pi pi-plus text-xs"></i>
+            <span>Register Sensor</span>
+          </button>
         </div>
+
+        <!-- Register Sensor Button (if sensor already exists, but user wants to add an extra node) -->
+        <button
+            v-if="authStore.canManageHardware && activeSensor"
+            @click="openAddSensorModal"
+            class="add-extra-sensor-btn"
+        >
+          <i class="pi pi-plus text-xs"></i> Add Another Sensor Node
+        </button>
       </div>
 
       <!-- Action Footer Link -->
@@ -81,15 +113,123 @@
         Select an observation well pinpoint from the map canvas to inspect hardware diagnostics.
       </p>
     </aside>
+
+    <!-- Modal 1: Add Station -->
+    <div v-if="showAddStationModal" class="modal-backdrop" @click.self="showAddStationModal = false">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 class="modal-title">Register Observation Station</h3>
+          <button @click="showAddStationModal = false" class="modal-close-btn">&times;</button>
+        </div>
+
+        <form @submit.prevent="submitCreateStation" class="modal-form">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Station Code *</label>
+              <input v-model="newStation.station_code" placeholder="e.g. ENG-02" required class="form-input" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Status</label>
+              <select v-model="newStation.status" class="form-input">
+                <option value="active">Active</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Station Name *</label>
+            <input v-model="newStation.station_name" placeholder="e.g. Enguli Lower Basin Well" required class="form-input" />
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Latitude (°N) *</label>
+              <input v-model.number="newStation.latitude" type="number" step="any" placeholder="-1.286389" required class="form-input" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Longitude (°E) *</label>
+              <input v-model.number="newStation.longitude" type="number" step="any" placeholder="36.817223" required class="form-input" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Site Description Notes</label>
+            <textarea v-model="newStation.location_description" rows="3" placeholder="Hydrogeological features, wellhead datum, nearby landmarks..." class="form-input"></textarea>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" @click="showAddStationModal = false" class="btn-cancel">Cancel</button>
+            <button type="submit" :disabled="isSubmitting" class="btn-submit">
+              <i v-if="isSubmitting" class="pi pi-spin pi-spinner mr-1"></i>
+              {{ isSubmitting ? 'Saving...' : 'Create Station' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal 2: Register Sensor -->
+    <div v-if="showAddSensorModal" class="modal-backdrop" @click.self="showAddSensorModal = false">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div>
+            <h3 class="modal-title">Register Sensor Hardware</h3>
+            <span class="modal-subtitle">Station: {{ activeStation?.station_code }} - {{ activeStation?.station_name }}</span>
+          </div>
+          <button @click="showAddSensorModal = false" class="modal-close-btn">&times;</button>
+        </div>
+
+        <form @submit.prevent="submitCreateSensor" class="modal-form">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Sensor Code</label>
+              <input v-model="newSensor.sensor_code" placeholder="e.g. SEN-02" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Sensor Type *</label>
+              <select v-model="newSensor.sensor_type" required class="form-input">
+                <option value="ultrasonic">Ultrasonic</option>
+                <option value="pressure">Pressure Transducer</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Serial Number / MAC Identifier *</label>
+            <input v-model="newSensor.serial_number" placeholder="e.g. ESP32-94DE69E9BFB4-S2" required class="form-input font-mono" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Calibration Offset Height (m) *</label>
+            <input v-model.number="newSensor.calibration_offset" type="number" step="0.01" placeholder="3.00" required class="form-input" />
+            <span class="field-help">Total height $H$ from sensor datum to river sand bed.</span>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" @click="showAddSensorModal = false" class="btn-cancel">Cancel</button>
+            <button type="submit" :disabled="isSubmitting" class="btn-submit">
+              <i v-if="isSubmitting" class="pi pi-spin pi-spinner mr-1"></i>
+              {{ isSubmitting ? 'Registering...' : 'Register Sensor' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import api from '../api';
+import { useAuthStore } from '../stores/auth';
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+
+const authStore = useAuthStore();
 
 const mapContainer = ref(null);
 let mapInstance = null;
@@ -98,6 +238,27 @@ const markersGroup = L.layerGroup();
 const stations = ref([]);
 const activeStation = ref(null);
 const activeSensor = ref(null);
+
+// Modal visibility & form models
+const showAddStationModal = ref(false);
+const showAddSensorModal = ref(false);
+const isSubmitting = ref(false);
+
+const newStation = ref({
+  station_code: '',
+  station_name: '',
+  latitude: null,
+  longitude: null,
+  location_description: '',
+  status: 'active'
+});
+
+const newSensor = ref({
+  sensor_code: '',
+  sensor_type: 'ultrasonic',
+  serial_number: '',
+  calibration_offset: 3.0
+});
 
 const handleResize = () => {
   if (mapInstance) {
@@ -112,7 +273,6 @@ const initMapEngine = () => {
     zoomControl: false
   }).setView([-1.286389, 36.817223], 7);
 
-  // Muted light tile map layer
   L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
     subdomains: 'abcd',
@@ -123,7 +283,7 @@ const initMapEngine = () => {
   markersGroup.addTo(mapInstance);
 };
 
-const loadStationsFramework = async () => {
+const loadStationsFramework = async (targetStationId = null) => {
   try {
     const stationsResponse = await api.getStations();
     stations.value = stationsResponse.data || [];
@@ -157,11 +317,16 @@ const loadStationsFramework = async () => {
         }
       });
 
-      if (boundsArray.length > 0) {
+      if (boundsArray.length > 0 && !targetStationId) {
         mapInstance.fitBounds(boundsArray, { padding: [40, 40] });
       }
 
-      inspectStation(stations.value[0]);
+      if (targetStationId) {
+        const found = stations.value.find(s => s.id === targetStationId);
+        if (found) inspectStation(found);
+      } else if (!activeStation.value) {
+        inspectStation(stations.value[0]);
+      }
     }
   } catch (error) {
     console.error("Error pulling coordinate layers:", error);
@@ -179,6 +344,60 @@ const inspectStation = async (station) => {
     }
   } catch (error) {
     console.error("Error loading node parameters:", error);
+  }
+};
+
+const openAddSensorModal = () => {
+  newSensor.value = {
+    sensor_code: '',
+    sensor_type: 'ultrasonic',
+    serial_number: '',
+    calibration_offset: 3.0
+  };
+  showAddSensorModal.value = true;
+};
+
+const submitCreateStation = async () => {
+  isSubmitting.value = true;
+  try {
+    const res = await api.createStation(newStation.value);
+    showAddStationModal.value = false;
+    newStation.value = {
+      station_code: '',
+      station_name: '',
+      latitude: null,
+      longitude: null,
+      location_description: '',
+      status: 'active'
+    };
+    await loadStationsFramework(res.data.id);
+    if (res.data.latitude && res.data.longitude) {
+      mapInstance.setView([res.data.latitude, res.data.longitude], 12);
+    }
+  } catch (error) {
+    console.error("Error creating station:", error);
+    alert(error.response?.data?.detail || "Failed to create station. Please verify input parameters.");
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+
+const submitCreateSensor = async () => {
+  if (!activeStation.value) return;
+  isSubmitting.value = true;
+  try {
+    const payload = {
+      ...newSensor.value,
+      station: activeStation.value.id
+    };
+    await api.createSensor(payload);
+    showAddSensorModal.value = false;
+    await inspectStation(activeStation.value);
+  } catch (error) {
+    console.error("Error registering sensor:", error);
+    alert(error.response?.data?.detail || "Failed to register sensor. Check serial uniqueness.");
+  } finally {
+    isSubmitting.value = false;
   }
 };
 
@@ -205,7 +424,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Split Layout: Column on mobile, Row on desktop */
+/* Split Layout */
 .stations-view-split-layout {
   display: flex;
   flex-direction: column;
@@ -247,6 +466,46 @@ onUnmounted(() => {
   z-index: 10;
 }
 
+.map-actions-overlay {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 20;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease;
+}
+
+.primary-action-btn {
+  background-color: #52796f;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(41, 37, 36, 0.15);
+}
+
+.primary-action-btn:hover {
+  background-color: #436b5f;
+}
+
+.secondary-action-btn {
+  background-color: #f0ece6;
+  color: #44403c;
+  border: 1px solid #ded9d2;
+}
+
+.secondary-action-btn:hover {
+  background-color: #e5dfd7;
+}
+
 /* Inspector Right Panel */
 .station-inspector-panel {
   flex: 1;
@@ -265,7 +524,6 @@ onUnmounted(() => {
   }
 }
 
-/* Header */
 .inspector-header-box {
   padding: 1.15rem;
   border-bottom: 1px solid #eeeae4;
@@ -302,7 +560,6 @@ onUnmounted(() => {
   margin: 0.4rem 0 0 0;
 }
 
-/* Scrollable Body */
 .inspector-body-scroll {
   flex: 1;
   padding: 1rem;
@@ -312,7 +569,6 @@ onUnmounted(() => {
   overflow-y: auto;
 }
 
-/* Diagnostics Cards */
 .hardware-diagnostics-card {
   background-color: #ffffff;
   border: 1px solid #ece8e1;
@@ -330,6 +586,15 @@ onUnmounted(() => {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin: 0 0 0.25rem 0;
+}
+
+.sensor-count-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #78716c;
+  background-color: #f2efe9;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
 }
 
 .diagnostic-data-row {
@@ -358,7 +623,6 @@ onUnmounted(() => {
   margin-top: 0.2rem;
 }
 
-/* Battery Indicators */
 .battery-readout {
   display: inline-flex;
   align-items: center;
@@ -375,19 +639,37 @@ onUnmounted(() => {
   color: #993838;
 }
 
-/* Empty Sensor Notification */
 .empty-sensor-card {
-  padding: 0.85rem;
+  padding: 1rem;
   background-color: #fcf8f2;
   border: 1px solid #f2e6d5;
   border-radius: 8px;
   text-align: center;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: #8c5b24;
-  font-weight: 500;
 }
 
-/* Action Footer */
+.add-extra-sensor-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.5rem;
+  background-color: #f7f6f4;
+  border: 1px dashed #ded9d2;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #6c665e;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.add-extra-sensor-btn:hover {
+  background-color: #ede8e1;
+  color: #292524;
+}
+
 .inspector-action-footer {
   padding: 0.85rem 1rem;
   border-top: 1px solid #eeeae4;
@@ -415,7 +697,6 @@ onUnmounted(() => {
   background-color: #436b5f;
 }
 
-/* Status Pill */
 .status-pill {
   font-size: 0.625rem;
   font-weight: 700;
@@ -443,7 +724,6 @@ onUnmounted(() => {
   border: 1px solid #f3d1d1;
 }
 
-/* Empty Panel */
 .inspector-empty-panel {
   display: flex;
   align-items: center;
@@ -465,10 +745,159 @@ onUnmounted(() => {
   max-width: 220px;
   margin: 0.25rem 0 0 0;
 }
+
+/* Modals */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+}
+
+.modal-card {
+  background-color: #fbfaf8;
+  border: 1px solid #e7e3dc;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 480px;
+  padding: 1.5rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #eeeae4;
+}
+
+.modal-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #292524;
+  margin: 0;
+}
+
+.modal-subtitle {
+  font-size: 0.72rem;
+  color: #78716c;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.35rem;
+  color: #a8a29e;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.modal-close-btn:hover {
+  color: #292524;
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.form-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #78716c;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  background-color: #ffffff;
+  border: 1px solid #ded9d2;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: #292524;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+
+.form-input:focus {
+  border-color: #52796f;
+}
+
+.field-help {
+  font-size: 0.65rem;
+  color: #8c857b;
+  margin-top: 0.15rem;
+}
+
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #eeeae4;
+}
+
+.btn-cancel {
+  padding: 0.5rem 0.85rem;
+  background-color: #f2efe9;
+  color: #6c665e;
+  border: 1px solid #ded9d2;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-submit {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background-color: #52796f;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-submit:hover:not(:disabled) {
+  background-color: #436b5f;
+}
+
+.btn-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
 </style>
 
 <style>
-/* Global Leaflet Marker Styles */
 .station-pin {
   width: 14px;
   height: 14px;

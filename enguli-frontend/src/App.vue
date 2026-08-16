@@ -1,24 +1,26 @@
 <template>
   <div class="app-viewport">
-    <!-- Top Global Header / Navbar -->
+    <!-- Top Global Header / Navbar (Hidden on Login) -->
     <Navbar
+        v-if="!isAuthPage"
         :is-sidebar-open="isExpanded"
         @toggle-sidebar="handleSidebarToggle"
     />
 
-    <div class="workspace-wrapper">
-      <!-- Responsive Sidebar -->
+    <div class="workspace-wrapper" :class="{ 'auth-workspace': isAuthPage }">
+      <!-- Responsive Sidebar (Hidden on Login) -->
       <Sidebar
+          v-if="!isAuthPage"
           :is-expanded="isExpanded"
           :is-mobile="isMobile"
           @toggle="handleSidebarToggle"
           @close="closeSidebarOnMobile"
       />
 
-      <!-- Mobile Dimmed Backdrop Overlay (visible only when mobile drawer is open) -->
+      <!-- Mobile Dimmed Backdrop Overlay (Hidden on Login) -->
       <transition name="backdrop-fade">
         <div
-            v-if="isMobile && isExpanded"
+            v-if="!isAuthPage && isMobile && isExpanded"
             class="mobile-sidebar-backdrop"
             @click="closeSidebarOnMobile"
             aria-hidden="true"
@@ -26,8 +28,8 @@
       </transition>
 
       <!-- Main Scrollable Work Area -->
-      <main class="main-content-window" :class="{ 'sidebar-collapsed': !isExpanded && !isMobile }">
-        <div class="content-container">
+      <main class="main-content-window" :class="{ 'sidebar-collapsed': !isExpanded && !isMobile, 'auth-content-window': isAuthPage }">
+        <div :class="isAuthPage ? 'auth-container' : 'content-container'">
           <router-view v-slot="{ Component }">
             <transition name="page-fade" mode="out-in">
               <component :is="Component" />
@@ -40,7 +42,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import Navbar from './components/Navbar.vue';
 import Sidebar from './components/Sidebar.vue';
@@ -49,6 +51,9 @@ import './assets/styles/shell.css';
 const route = useRoute();
 const isExpanded = ref(true);
 const isMobile = ref(false);
+
+// Evaluates to true whenever the user is on the login page
+const isAuthPage = computed(() => route.name === 'Login' || route.path === '/login');
 
 // Breakpoint handler (1024px tablet/desktop boundary)
 const checkScreenSize = () => {
@@ -109,6 +114,11 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
+/* Expands workspace to 100vh when on login */
+.workspace-wrapper.auth-workspace {
+  height: 100vh;
+}
+
 /* Scrollable Container for Dynamic Pages */
 .main-content-window {
   flex: 1;
@@ -121,12 +131,24 @@ onUnmounted(() => {
   transition: padding-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.main-content-window.auth-content-window {
+  background-color: transparent;
+  padding: 0;
+}
+
 .content-container {
   width: 100%;
   max-width: 1600px; /* Prevents ultra-wide monitor stretching */
   margin: 0 auto;
   padding: 1rem;
   box-sizing: border-box;
+}
+
+.auth-container {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 @media (min-width: 768px) {
