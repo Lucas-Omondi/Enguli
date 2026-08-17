@@ -4,6 +4,7 @@ import StationsView from '../views/StationsView.vue';
 import AnalyticsView from '../views/AnalyticsView.vue';
 import DataTablesView from '../views/DataTablesView.vue';
 import LoginView from '../views/LoginView.vue';
+import UsersView from '../views/UsersView.vue';
 
 const routes = [
     {
@@ -34,6 +35,12 @@ const routes = [
         path: '/tables',
         name: 'DataTables',
         component: DataTablesView,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/users',
+        name: 'Users',
+        component: UsersView,
         meta: { requiresAuth: true }
     }
 ];

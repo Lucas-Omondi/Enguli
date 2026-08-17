@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api').replace(/\/$/, '');
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({
@@ -14,17 +14,25 @@ export const useAuthStore = defineStore('auth', {
 
     getters: {
         isAuthenticated: (state) => !!state.accessToken,
-        userRole: (state) => state.user?.profile?.role || 'OBSERVER',
-        // Display names mapping
+
+        // Resolve user role with safe fallbacks
+        userRole: (state) => {
+            if (state.user?.is_superuser) return 'ADMIN';
+            return state.user?.profile?.role || 'OBSERVER';
+        },
+
         roleDisplayName: (state) => {
-            const role = state.user?.profile?.role;
+            const role = state.user?.is_superuser ? 'ADMIN' : (state.user?.profile?.role || 'OBSERVER');
             if (role === 'ADMIN') return 'System Administrator';
             if (role === 'FIELD_ENGINEER') return 'Field Engineer';
-            return 'Farmer';
+            return 'Farmer / Observer';
         },
+
+        // Grant management rights to Admins, Field Engineers, and superusers
         canManageHardware: (state) => {
+            if (state.user?.is_superuser) return true;
             const role = state.user?.profile?.role;
-            return role === 'ADMIN' || role === 'FIELD_ENGINEER' || state.user?.is_superuser;
+            return role === 'ADMIN' || role === 'FIELD_ENGINEER';
         }
     },
 
@@ -45,7 +53,7 @@ export const useAuthStore = defineStore('auth', {
                 localStorage.setItem('access_token', this.accessToken);
                 localStorage.setItem('refresh_token', this.refreshToken);
 
-                // Fetch user profile & role
+                // Await profile fetch BEFORE finishing login
                 await this.fetchCurrentUser();
                 return true;
             } catch (error) {

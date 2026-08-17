@@ -93,5 +93,11 @@ export default {
     getTelemetryLogs(stationId = null) {
         const params = stationId ? { station_id: stationId } : {};
         return api.get('/telemetry/logs/', { params });
+    },
+    getUsers() {
+        return api.get('/users/');
+    },
+    createUser(userData) {
+        return api.post('/users/', userData);
     }
 };
