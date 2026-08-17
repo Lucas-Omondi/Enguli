@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'corsheaders',
 
     # Enguli Project Modular Apps
+    'accounts',
     'stations',
     'telemetry',
     'analytics',

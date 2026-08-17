@@ -1,7 +1,7 @@
 from rest_framework import serializers
-from .models import Station, Sensor, UserProfile
+from .models import Station, Sensor
 from django.contrib.auth.models import User
-
+from accounts.models import UserProfile
 
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:

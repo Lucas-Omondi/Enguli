@@ -19,11 +19,13 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import (TokenObtainPairView, TokenRefreshView)
 from telemetry.views import TelemetryIngestView
-from stations.views import StationViewSet, SensorViewSet, CurrentUserView
+from stations.views import StationViewSet, SensorViewSet
+from accounts.views import CurrentUserView, UserManagementViewSet
 
 router = DefaultRouter()
 router.register(r'stations', StationViewSet)
 router.register(r'sensors', SensorViewSet)
+router.register(r'users', UserManagementViewSet, basename='users')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

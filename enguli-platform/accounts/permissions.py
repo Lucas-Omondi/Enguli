@@ -3,9 +3,8 @@ from rest_framework import permissions
 
 class IsAdminOrFieldEngineer(permissions.BasePermission):
     """
-    Allows read-only access to all authenticated users,
-    but write/create access (POST, PUT, DELETE) exclusively
-    to ADMIN and FIELD_ENGINEER roles.
+    Grants read access to authenticated users, but write access
+    exclusively to ADMIN, FIELD_ENGINEER, and superusers.
     """
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
