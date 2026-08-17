@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import permissions, status
 
 from stations.models import Station
+from telemetry.models import SensorReading
 from .services import get_station_aggregation
 
 
@@ -49,19 +50,19 @@ class SandDamStorageModelView(APIView):
             length = float(request.data.get('length_m', 250.0))         # Length of sand reservoir along channel (m)
             width = float(request.data.get('width_m', 20.0))            # Average sand bed width (m)
             bed_depth = float(request.data.get('bed_depth_m', 4.5))     # Total sand thickness to impermeable bedrock (m)
-            specific_yield = float(request.data.get('specific_yield', 0.28)) # Drainable porosity (Sy: 0.25 - 0.35 for coarse river sand)
-            daily_demand = float(request.data.get('daily_demand_m3', 50.0))  # Daily community/irrigation extraction rate (m^3/day)
+            specific_yield = float(request.data.get('specific_yield', 0.28)) # Drainable porosity (Sy: 0.25 - 0.35)
+            daily_demand = float(request.data.get('daily_demand_m3', 50.0))  # Daily community/irrigation extraction (m^3/day)
         except (ValueError, TypeError):
             return Response({"error": "Invalid numerical parameters supplied."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Retrieve latest water depth telemetry for this station
-        latest_telemetry = TelemetryData.objects.filter(sensor__station=station).order_by('-timestamp').first()
+        # Retrieve latest water level reading from SensorReading
+        latest_reading = SensorReading.objects.filter(station=station).order_by('-timestamp').first()
 
-        if latest_telemetry and latest_telemetry.water_level is not None:
-            water_table_depth = float(latest_telemetry.water_level)
-            reading_time = latest_telemetry.timestamp
+        if latest_reading and latest_reading.water_level is not None:
+            water_table_depth = float(latest_reading.water_level)
+            reading_time = latest_reading.timestamp
         else:
-            # Fallback if no telemetry is logged yet (assumes midpoint)
+            # Fallback if no telemetry is logged yet
             water_table_depth = bed_depth * 0.5
             reading_time = None
 
