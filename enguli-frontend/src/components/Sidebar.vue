@@ -24,7 +24,7 @@
       <!-- Navigation Links List -->
       <nav class="sidebar-nav-list">
         <router-link
-            v-for="item in navItems"
+            v-for="item in visibleNavItems"
             :key="item.path"
             :to="item.path"
             class="sidebar-nav-item"
@@ -58,7 +58,9 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
 import { useRoute } from 'vue-router';
+import { useAuthStore } from '../stores/auth';
 
 const props = defineProps({
   isExpanded: {
@@ -74,13 +76,24 @@ const props = defineProps({
 const emit = defineEmits(['toggle', 'close']);
 
 const route = useRoute();
+const authStore = useAuthStore();
 
+// Base Navigation Links
 const navItems = [
-  { name: 'Dashboard Overview', path: '/', icon: 'pi pi-th-large' },
-  { name: 'Telemetry Stations', path: '/stations', icon: 'pi pi-map-marker' },
-  { name: 'Hydrological Analytics', path: '/analytics', icon: 'pi pi-chart-bar' },
-  { name: 'System Logs Table', path: '/tables', icon: 'pi pi-server' }
+  { name: 'Dashboard Overview', path: '/', icon: 'pi pi-th-large', requiresAdmin: false },
+  { name: 'Telemetry Stations', path: '/stations', icon: 'pi pi-map-marker', requiresAdmin: false },
+  { name: 'Hydrological Analytics', path: '/analytics', icon: 'pi pi-chart-bar', requiresAdmin: false },
+  { name: 'System Logs Table', path: '/tables', icon: 'pi pi-server', requiresAdmin: false },
+  { name: 'User Directory', path: '/users', icon: 'pi pi-users', requiresAdmin: true }
 ];
+
+// Filters out User Directory if the user is an Observer / Farmer
+const visibleNavItems = computed(() => {
+  return navItems.filter(item => {
+    if (!item.requiresAdmin) return true;
+    return authStore.canManageHardware;
+  });
+});
 
 const toggleSidebar = () => {
   emit('toggle');
@@ -99,7 +112,6 @@ const isActive = (path) => {
 </script>
 
 <style scoped>
-/* Main Container: Muted warm stone surface */
 .sidebar-container {
   display: flex;
   flex-direction: column;
@@ -113,7 +125,6 @@ const isActive = (path) => {
   z-index: 45;
 }
 
-/* Desktop Width States */
 .sidebar-expanded {
   width: 240px;
 }
@@ -122,11 +133,10 @@ const isActive = (path) => {
   width: 68px;
 }
 
-/* Mobile Off-Canvas Drawer Behavior */
 @media (max-width: 1024px) {
   .sidebar-container {
     position: fixed;
-    top: 62px; /* Sits directly beneath top navbar */
+    top: 62px;
     bottom: 0;
     left: 0;
     width: 260px;
@@ -139,7 +149,6 @@ const isActive = (path) => {
   }
 }
 
-/* Header */
 .sidebar-header {
   display: flex;
   align-items: center;
@@ -175,14 +184,12 @@ const isActive = (path) => {
   color: #383533;
 }
 
-/* On mobile screen hide the inner collapse button since Navbar has hamburger */
 @media (max-width: 1024px) {
   .sidebar-toggle-btn {
     display: none;
   }
 }
 
-/* Navigation List */
 .sidebar-nav-list {
   display: flex;
   flex-direction: column;
@@ -190,7 +197,6 @@ const isActive = (path) => {
   padding: 0.6rem 0.65rem;
 }
 
-/* Navigation Items */
 .sidebar-nav-item {
   display: flex;
   align-items: center;
@@ -220,7 +226,6 @@ const isActive = (path) => {
   flex: 1;
 }
 
-/* Inactive State: Neutral warm stone text */
 .nav-item-inactive {
   color: #6c665e;
 }
@@ -230,7 +235,6 @@ const isActive = (path) => {
   color: #292524;
 }
 
-/* Active State: Soft muted sage & warm sand background */
 .nav-item-active {
   background-color: #e5ede8;
   color: #385a50;
@@ -248,7 +252,6 @@ const isActive = (path) => {
   background-color: #52796f;
 }
 
-/* Footer Section */
 .sidebar-footer {
   display: flex;
   align-items: center;

@@ -47,7 +47,7 @@
       </div>
     </div>
 
-    <!-- Right Section: Status Indicator + User Profile -->
+    <!-- Right Section: Status Indicator + User Profile Dropdown -->
     <div class="nav-meta-group">
       <!-- Muted Live Telemetry Pill -->
       <div class="status-indicator-pill">
@@ -60,21 +60,60 @@
 
       <div class="divider-vertical"></div>
 
-      <!-- User Profile Badge (Muted Neutral Gray) -->
-      <div class="user-profile-group">
-        <div class="user-avatar" title="System Administrator">
-          AD
-        </div>
-        <div class="user-meta hidden-mobile">
-          <span class="user-name">Administrator</span>
-          <span class="user-role">Enguli Sand River</span>
-        </div>
+      <!-- User Profile Interactive Badge & Dropdown -->
+      <div class="user-profile-wrapper" ref="dropdownRef">
+        <button
+            type="button"
+            class="user-profile-trigger"
+            @click="toggleDropdown"
+            :aria-expanded="isDropdownOpen"
+        >
+          <div class="user-avatar" :title="displayName">
+            {{ userInitials }}
+          </div>
+          <div class="user-meta hidden-mobile">
+            <span class="user-name">{{ displayName }}</span>
+            <span class="user-role">{{ authStore.roleDisplayName }}</span>
+          </div>
+          <i class="pi pi-chevron-down dropdown-caret" :class="{ 'caret-rotate': isDropdownOpen }"></i>
+        </button>
+
+        <!-- Profile / Logout Dropdown Menu -->
+        <transition name="dropdown-fade">
+          <div v-if="isDropdownOpen" class="user-dropdown-menu">
+            <div class="dropdown-header">
+              <span class="dropdown-username">@{{ authStore.user?.username || 'user' }}</span>
+              <span class="dropdown-email">{{ authStore.user?.email || 'No email attached' }}</span>
+            </div>
+
+            <div class="dropdown-divider"></div>
+
+            <router-link
+                v-if="authStore.canManageHardware"
+                to="/users"
+                class="dropdown-item"
+                @click="isDropdownOpen = false"
+            >
+              <i class="pi pi-users"></i>
+              <span>User Directory</span>
+            </router-link>
+
+            <button type="button" class="dropdown-item logout-item" @click="handleLogout">
+              <i class="pi pi-sign-out"></i>
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </transition>
       </div>
     </div>
   </header>
 </template>
 
 <script setup>
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from '../stores/auth';
+
 defineProps({
   isSidebarOpen: {
     type: Boolean,
@@ -83,17 +122,67 @@ defineProps({
 });
 
 defineEmits(['toggle-sidebar']);
+
+const authStore = useAuthStore();
+const router = useRouter();
+
+const isDropdownOpen = ref(false);
+const dropdownRef = ref(null);
+
+const displayName = computed(() => {
+  const u = authStore.user;
+  if (!u) return 'Observer';
+  if (u.first_name || u.last_name) {
+    return `${u.first_name} ${u.last_name}`.trim();
+  }
+  return u.username;
+});
+
+const userInitials = computed(() => {
+  const u = authStore.user;
+  if (!u) return 'EP';
+  if (u.first_name && u.last_name) {
+    return `${u.first_name[0]}${u.last_name[0]}`.toUpperCase();
+  }
+  if (u.username) {
+    return u.username.slice(0, 2).toUpperCase();
+  }
+  return 'EP';
+});
+
+const toggleDropdown = () => {
+  isDropdownOpen.value = !isDropdownOpen.value;
+};
+
+const closeOnOutsideClick = (event) => {
+  if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
+    isDropdownOpen.value = false;
+  }
+};
+
+const handleLogout = () => {
+  isDropdownOpen.value = false;
+  authStore.logout();
+  router.push('/login');
+};
+
+onMounted(() => {
+  document.addEventListener('click', closeOnOutsideClick);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeOnOutsideClick);
+});
 </script>
 
 <style scoped>
-/* Top Navigation Bar: Soft Stone/Nude Balanced Background */
 .navbar-strip {
   display: flex;
   align-items: center;
   justify-content: space-between;
   height: 62px;
   padding: 0 1.25rem;
-  background-color: #f7f6f4; /* Warm neutral bone/nude tone */
+  background-color: #f7f6f4;
   border-bottom: 1px solid #e7e4df;
   box-shadow: 0 1px 3px rgba(30, 41, 59, 0.03);
   box-sizing: border-box;
@@ -101,14 +190,12 @@ defineEmits(['toggle-sidebar']);
   position: relative;
 }
 
-/* Brand Group */
 .nav-brand-group {
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
 
-/* Responsive Hamburger Toggle Button */
 .sidebar-toggle-btn {
   display: flex;
   align-items: center;
@@ -134,18 +221,16 @@ defineEmits(['toggle-sidebar']);
   height: 18px;
 }
 
-/* On Desktop screens > 1024px, hide the hamburger button */
 @media (min-width: 1025px) {
   .sidebar-toggle-btn {
     display: none;
   }
 }
 
-/* Brand Icon (Muted Earthy Sage) */
 .brand-badge {
   width: 32px;
   height: 32px;
-  background-color: #52796f; /* Muted slate sage */
+  background-color: #52796f;
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -159,7 +244,6 @@ defineEmits(['toggle-sidebar']);
   height: 18px;
 }
 
-/* Brand Typography */
 .brand-titles {
   display: flex;
   flex-direction: column;
@@ -182,14 +266,12 @@ defineEmits(['toggle-sidebar']);
   margin-top: 1px;
 }
 
-/* Right Section Group */
 .nav-meta-group {
   display: flex;
   align-items: center;
   gap: 1rem;
 }
 
-/* Muted Status Pill */
 .status-indicator-pill {
   display: flex;
   align-items: center;
@@ -238,37 +320,52 @@ defineEmits(['toggle-sidebar']);
   }
 }
 
-/* Divider */
 .divider-vertical {
   width: 1px;
   height: 18px;
   background-color: #e0dad1;
 }
 
-/* User Profile */
-.user-profile-group {
+/* User Profile Trigger & Dropdown */
+.user-profile-wrapper {
+  position: relative;
+}
+
+.user-profile-trigger {
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem 0.4rem;
+  border-radius: 8px;
+  transition: background-color 0.15s ease;
+}
+
+.user-profile-trigger:hover {
+  background-color: #eeeae4;
 }
 
 .user-avatar {
   width: 32px;
   height: 32px;
   border-radius: 9999px;
-  background-color: #6c665e;
-  color: #f7f6f4;
+  background-color: #52796f;
+  color: #fdfdfc;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.72rem;
+  font-weight: 700;
   letter-spacing: 0.03em;
+  box-shadow: 0 1px 2px rgba(82, 121, 111, 0.25);
 }
 
 .user-meta {
   display: flex;
   flex-direction: column;
+  text-align: left;
 }
 
 .user-name {
@@ -281,6 +378,103 @@ defineEmits(['toggle-sidebar']);
 .user-role {
   font-size: 0.65rem;
   color: #8c857b;
+}
+
+.dropdown-caret {
+  font-size: 0.65rem;
+  color: #8c857b;
+  transition: transform 0.2s ease;
+}
+
+.caret-rotate {
+  transform: rotate(180deg);
+}
+
+/* Dropdown Menu Window */
+.user-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 200px;
+  background-color: #fbfaf8;
+  border: 1px solid #e7e3dc;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(41, 37, 36, 0.08);
+  padding: 0.5rem;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dropdown-header {
+  display: flex;
+  flex-direction: column;
+  padding: 0.4rem 0.6rem;
+}
+
+.dropdown-username {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #292524;
+}
+
+.dropdown-email {
+  font-size: 0.68rem;
+  color: #8c857b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background-color: #eeeae4;
+  margin: 0.25rem 0;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: #57534e;
+  text-decoration: none;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
+}
+
+.dropdown-item:hover {
+  background-color: #f0ece6;
+  color: #292524;
+}
+
+.logout-item {
+  color: #993838;
+}
+
+.logout-item:hover {
+  background-color: #faebeb;
+  color: #802626;
+}
+
+/* Transitions */
+.dropdown-fade-enter-active,
+.dropdown-fade-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.dropdown-fade-enter-from,
+.dropdown-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
 /* Responsive Hide Rules */
