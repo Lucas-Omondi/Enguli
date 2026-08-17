@@ -105,5 +105,8 @@ export default {
     },
     resolveAlert(alertId) {
         return api.post(`/alerts/${alertId}/resolve/`);
-    }
+    },
+    calculateStorageModel(params) {
+        return api.post('/analytics/storage-model/', params);
+    },
 };

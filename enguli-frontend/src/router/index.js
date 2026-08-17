@@ -6,6 +6,7 @@ import DataTablesView from '../views/DataTablesView.vue';
 import LoginView from '../views/LoginView.vue';
 import UsersView from '../views/UsersView.vue';
 import AlertsView from '../views/AlertsView.vue';
+import StorageModelView from "../views/StorageModelView.vue";
 
 const routes = [
     {
@@ -48,6 +49,12 @@ const routes = [
         path: '/alerts',
         name: 'Alerts',
         component: AlertsView,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/storage-model',
+        name: 'StorageModel',
+        component: StorageModelView,
         meta: { requiresAuth: true }
     }
 ];
