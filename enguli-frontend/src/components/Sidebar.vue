@@ -78,12 +78,15 @@ const emit = defineEmits(['toggle', 'close']);
 const route = useRoute();
 const authStore = useAuthStore();
 
-// Base Navigation Links
+// Complete Navigation Links with Alerts, Storage Model, and Reports
 const navItems = [
   { name: 'Dashboard Overview', path: '/', icon: 'pi pi-th-large', requiresAdmin: false },
   { name: 'Telemetry Stations', path: '/stations', icon: 'pi pi-map-marker', requiresAdmin: false },
+  { name: 'Storage Model', path: '/storage-model', icon: 'pi pi-sliders-h', requiresAdmin: false },
   { name: 'Hydrological Analytics', path: '/analytics', icon: 'pi pi-chart-bar', requiresAdmin: false },
+  { name: 'Alerts & Health', path: '/alerts', icon: 'pi pi-bell', requiresAdmin: false },
   { name: 'System Logs Table', path: '/tables', icon: 'pi pi-server', requiresAdmin: false },
+  { name: 'Data Reports', path: '/reports', icon: 'pi pi-download', requiresAdmin: false },
   { name: 'User Directory', path: '/users', icon: 'pi pi-users', requiresAdmin: true }
 ];
 
