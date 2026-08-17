@@ -10,8 +10,17 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 
 class UserDetailSerializer(serializers.ModelSerializer):
-    profile = UserProfileSerializer(read_only=True)
+    profile = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'profile']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_superuser', 'profile']
+
+    def get_profile(self, obj):
+        # Gracefully handle users without a profile
+        if hasattr(obj, 'profile'):
+            return UserProfileSerializer(obj.profile).data
+        return {
+            'role': 'ADMIN' if obj.is_superuser else 'OBSERVER',
+            'phone_number': ''
+        }
