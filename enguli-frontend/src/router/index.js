@@ -7,6 +7,7 @@ import LoginView from '../views/LoginView.vue';
 import UsersView from '../views/UsersView.vue';
 import AlertsView from '../views/AlertsView.vue';
 import StorageModelView from "../views/StorageModelView.vue";
+import ReportsView from "../views/ReportsView.vue";
 
 const routes = [
     {
@@ -55,6 +56,12 @@ const routes = [
         path: '/storage-model',
         name: 'StorageModel',
         component: StorageModelView,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/reports',
+        name: 'Reports',
+        component: ReportsView,
         meta: { requiresAuth: true }
     }
 ];

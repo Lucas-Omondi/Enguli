@@ -109,4 +109,10 @@ export default {
     calculateStorageModel(params) {
         return api.post('/analytics/storage-model/', params);
     },
+    exportTelemetryCSV(params = {}) {
+        return api.get('/telemetry/export/csv/', {
+            params,
+            responseType: 'blob'
+        });
+    },
 };
