@@ -99,5 +99,11 @@ export default {
     },
     createUser(userData) {
         return api.post('/users/', userData);
+    },
+    getAlerts(params = {}) {
+        return api.get('/alerts/', { params });
+    },
+    resolveAlert(alertId) {
+        return api.post(`/alerts/${alertId}/resolve/`);
     }
 };

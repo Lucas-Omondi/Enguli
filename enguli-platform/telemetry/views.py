@@ -1,6 +1,8 @@
+import csv
+from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status, viewsets
 from stations.models import Sensor, Station
 from .models import SensorReading
@@ -10,6 +12,7 @@ from alerts.services import generate_alert
 
 class TelemetryIngestView(APIView):
     permission_classes = [AllowAny]
+
     def post(self, request):
         serializer = SensorIngestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -54,7 +57,11 @@ class TelemetryIngestView(APIView):
         # 4. Update sensor diagnostics
         if data.get('battery_level') is not None:
             sensor.battery_level = data['battery_level']
-            sensor.save(update_fields=['battery_level', 'updated_at'])
+            # Fall back to save() safely if updated_at is not defined on the model
+            try:
+                sensor.save(update_fields=['battery_level', 'updated_at'])
+            except Exception:
+                sensor.save(update_fields=['battery_level'])
 
         # 5. Alert Trigger
         try:
@@ -76,16 +83,66 @@ class SensorReadingViewSet(viewsets.ReadOnlyModelViewSet):
     Exposes a read-only endpoint to stream historical logs
     and time-series data to frontend tables and charts.
     """
-    # Use select_related to optimize database execution queries
     queryset = SensorReading.objects.select_related('station', 'sensor').all().order_by('-timestamp')
     serializer_class = SensorReadingSerializer
 
     def get_queryset(self):
         queryset = super().get_queryset()
 
-        # Allows your Vue frontend to pass ?station_id=X to filter records
         station_id = self.request.query_params.get('station_id')
         if station_id:
             queryset = queryset.filter(station_id=station_id)
 
         return queryset
+
+
+class ExportTelemetryCSVView(APIView):
+    """
+    Exports telemetry time-series records to CSV format for hydrological reporting.
+    Accepts optional filters: ?station_id=X, ?start_date=YYYY-MM-DD, ?end_date=YYYY-MM-DD
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        station_id = request.query_params.get('station_id')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+
+        queryset = SensorReading.objects.select_related('station', 'sensor').all().order_by('-timestamp')
+
+        if station_id:
+            queryset = queryset.filter(station_id=station_id)
+        if start_date:
+            queryset = queryset.filter(timestamp__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(timestamp__lte=end_date)
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="enguli_telemetry_export.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow([
+            'Log ID',
+            'Station Code',
+            'Station Name',
+            'Sensor Serial',
+            'Water Level (m)',
+            'Battery Level (%)',
+            'Signal Strength (RSSI)',
+            'Timestamp (UTC)'
+        ])
+
+        # Capped to 5,000 rows for high performance
+        for log in queryset[:5000]:
+            writer.writerow([
+                log.id,
+                log.station.station_code if log.station else 'N/A',
+                log.station.station_name if log.station else 'N/A',
+                log.sensor.serial_number if log.sensor else 'N/A',
+                round(log.water_level, 3) if log.water_level is not None else '',
+                log.battery_level_snapshot if log.battery_level_snapshot is not None else '',
+                log.signal_strength if log.signal_strength is not None else '',
+                log.timestamp.isoformat() if log.timestamp else ''
+            ])
+
+        return response

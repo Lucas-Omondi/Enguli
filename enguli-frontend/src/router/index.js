@@ -5,6 +5,7 @@ import AnalyticsView from '../views/AnalyticsView.vue';
 import DataTablesView from '../views/DataTablesView.vue';
 import LoginView from '../views/LoginView.vue';
 import UsersView from '../views/UsersView.vue';
+import AlertsView from '../views/AlertsView.vue';
 
 const routes = [
     {
@@ -41,6 +42,12 @@ const routes = [
         path: '/users',
         name: 'Users',
         component: UsersView,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/alerts',
+        name: 'Alerts',
+        component: AlertsView,
         meta: { requiresAuth: true }
     }
 ];
