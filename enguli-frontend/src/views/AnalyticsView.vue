@@ -52,13 +52,21 @@
           <i class="pi pi-chart-line text-sage"></i>
           Groundwater Level Fluctuations & Safety Limits
         </h3>
-        <span class="chart-tag-text">Calibrated Values (H - D)</span>
+        <span class="chart-tag-text">Live Ingested Telemetry (H - D)</span>
       </div>
 
-      <div class="chart-canvas-box" v-if="loaded">
+      <div class="chart-canvas-box" v-if="loaded && chartData.labels.length > 0">
         <Line :data="chartData" :options="chartOptions" />
       </div>
 
+      <!-- Empty State -->
+      <div class="chart-empty-box" v-else-if="loaded && chartData.labels.length === 0">
+        <i class="pi pi-database text-stone-400 text-3xl"></i>
+        <p class="empty-heading">No Telemetry Recorded Yet</p>
+        <p class="empty-msg">Waiting for initial transmission from station sensors.</p>
+      </div>
+
+      <!-- Loading State -->
       <div class="chart-loading-box" v-else>
         <i class="pi pi-spin pi-spinner text-sage text-2xl"></i>
         <p class="loading-msg">Querying aquifer histories...</p>
@@ -118,22 +126,68 @@ const fetchStationData = async (stationId) => {
       activeStationDetails.value = { code: matchedStation.station_code };
     }
 
-    const analyticsResponse = await api.getStationAnalytics(stationId);
-    const aggs = analyticsResponse.data;
+    // 1. Fetch live historical time-series records for this station
+    // If api.getSensorReadings exists, call it; otherwise fetch from endpoint directly:
+    const response = typeof api.getSensorReadings === 'function'
+        ? await api.getSensorReadings({ station_id: stationId })
+        : await api.client.get(`/api/telemetry/readings/?station_id=${stationId}`);
 
-    metrics.value = {
-      avg: typeof aggs.average_water_level === 'number' ? aggs.average_water_level.toFixed(2) : '0.00',
-      min: typeof aggs.min_water_level === 'number' ? aggs.min_water_level.toFixed(2) : '0.00',
-      max: typeof aggs.max_water_level === 'number' ? aggs.max_water_level.toFixed(2) : '0.00'
-    };
+    const logs = response.data?.results || response.data || [];
 
-    const timelineLabels = ['06:00 AM', '09:00 AM', '12:00 PM', '03:00 PM', '06:00 PM', '09:00 PM', '12:00 AM'];
-    const historicalReadings = [2.1, 1.8, 1.4, 0.9, 0.45, 1.2, 1.9];
+    if (logs.length > 0) {
+      // Backend returns '-timestamp' (descending). Reverse to chronological order (left to right)
+      const chronologicalLogs = [...logs].reverse();
 
-    setupChartEngine(timelineLabels, historicalReadings);
+      const timelineLabels = [];
+      const waterLevelValues = [];
+      let total = 0;
+      let minVal = Infinity;
+      let maxVal = -Infinity;
+
+      chronologicalLogs.forEach((entry) => {
+        if (entry.water_level !== null && entry.water_level !== undefined) {
+          const val = Number(entry.water_level);
+          waterLevelValues.push(Number(val.toFixed(3)));
+
+          total += val;
+          if (val < minVal) minVal = val;
+          if (val > maxVal) maxVal = val;
+
+          // Format UTC timestamp to readable local time (e.g., "08:15 PM" or "Aug 30, 20:15")
+          if (entry.timestamp) {
+            const date = new Date(entry.timestamp);
+            const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            timelineLabels.push(timeStr);
+          } else {
+            timelineLabels.push(`Log #${entry.id}`);
+          }
+        }
+      });
+
+      // Update aggregate metrics from actual dataset
+      const count = waterLevelValues.length;
+      if (count > 0) {
+        metrics.value = {
+          avg: (total / count).toFixed(2),
+          min: minVal.toFixed(2),
+          max: maxVal.toFixed(2)
+        };
+      } else {
+        metrics.value = { avg: '0.00', min: '0.00', max: '0.00' };
+      }
+
+      setupChartEngine(timelineLabels, waterLevelValues);
+    } else {
+      // Empty station state
+      metrics.value = { avg: '0.00', min: '0.00', max: '0.00' };
+      setupChartEngine([], []);
+    }
+
     loaded.value = true;
   } catch (error) {
-    console.error("Error querying station parameters:", error);
+    console.error("Error querying station telemetry parameters:", error);
+    metrics.value = { avg: '0.00', min: '0.00', max: '0.00' };
+    setupChartEngine([], []);
     loaded.value = true;
   }
 };
@@ -151,7 +205,7 @@ const setupChartEngine = (labels, values) => {
       {
         label: 'Calibrated Water Table Depth (m)',
         data: values,
-        borderColor: '#52796f', // Muted sage
+        borderColor: '#52796f',
         borderWidth: 2,
         backgroundColor: (context) => {
           const chart = context.chart;
@@ -159,17 +213,17 @@ const setupChartEngine = (labels, values) => {
           if (!chartArea) return null;
 
           const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-          gradient.addColorStop(0, 'rgba(82, 121, 111, 0.15)');
+          gradient.addColorStop(0, 'rgba(82, 121, 111, 0.20)');
           gradient.addColorStop(1, 'rgba(82, 121, 111, 0.00)');
           return gradient;
         },
         fill: true,
-        tension: 0.35,
+        tension: 0.3,
         pointBackgroundColor: '#52796f',
         pointBorderColor: '#ffffff',
         pointBorderWidth: 1.5,
-        pointHoverRadius: 5,
-        pointRadius: 3
+        pointHoverRadius: 6,
+        pointRadius: values.length > 50 ? 0 : 3.5 // Hide individual dots if high density log
       }
     ]
   };
@@ -189,7 +243,7 @@ const setupChartEngine = (labels, values) => {
         cornerRadius: 6,
         displayColors: false,
         callbacks: {
-          label: (context) => ` Level: ${context.parsed.y} meters`
+          label: (context) => ` Water Level: ${context.parsed.y} m`
         }
       }
     },
@@ -204,12 +258,11 @@ const setupChartEngine = (labels, values) => {
         }
       },
       y: {
-        min: 0,
-        max: 5,
+        suggestedMin: 0,
+        suggestedMax: 3.5,
         ticks: {
           color: '#8c857b',
           font: { size: 10 },
-          stepSize: 1,
           callback: (value) => `${value}m`
         },
         grid: { color: '#ece8e1' }
@@ -288,7 +341,7 @@ onMounted(() => {
   border-color: #52796f;
 }
 
-/* Stats Summary Strip (2x2 on mobile, 4 in a row on desktop) */
+/* Stats Summary Strip */
 .stats-summary-strip {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -391,7 +444,8 @@ onMounted(() => {
   }
 }
 
-.chart-loading-box {
+.chart-loading-box,
+.chart-empty-box {
   height: 320px;
   display: flex;
   flex-direction: column;
@@ -403,9 +457,17 @@ onMounted(() => {
   border: 1px dashed #ded9d2;
 }
 
-.loading-msg {
+.loading-msg,
+.empty-msg {
   font-size: 0.75rem;
   color: #78716c;
+  margin: 0;
+}
+
+.empty-heading {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #44403c;
   margin: 0;
 }
 </style>
