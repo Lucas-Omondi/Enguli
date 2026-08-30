@@ -49,7 +49,6 @@ class TelemetryIngestView(APIView):
                     defaults={
                         'station': station,
                         'calibration_offset': 3.0,
-                        'status': 'ACTIVE'
                     }
                 )
             except Exception as sensor_err:
