@@ -4,8 +4,8 @@
     <div class="map-container-wrapper">
       <div ref="mapContainer" class="map-canvas-panel"></div>
 
-      <!-- Management Quick Action Header (Only for Admin / Field Engineer) -->
-      <div v-if="authStore.canManageHardware" class="map-actions-overlay">
+      <!-- Management Quick Action Header (Safe Auth Check) -->
+      <div v-if="authStore?.canManageHardware" class="map-actions-overlay">
         <button @click="showAddStationModal = true" class="action-btn primary-action-btn">
           <i class="pi pi-plus text-xs"></i>
           <span>Add Station</span>
@@ -66,9 +66,9 @@
           </div>
           <div class="diagnostic-data-row border-top-divider">
             <span class="diagnostic-label">Node Battery Charge</span>
-            <span class="battery-readout" :class="activeSensor.battery_level < 20 ? 'battery-low' : 'battery-normal'">
-              <i class="pi" :class="activeSensor.battery_level < 20 ? 'pi-battery-down' : 'pi-battery-up'"></i>
-              {{ activeSensor.battery_level }}%
+            <span class="battery-readout" :class="(activeSensor.battery_level || 100) < 20 ? 'battery-low' : 'battery-normal'">
+              <i class="pi" :class="(activeSensor.battery_level || 100) < 20 ? 'pi-battery-down' : 'pi-battery-up'"></i>
+              {{ activeSensor.battery_level ?? 100 }}%
             </span>
           </div>
         </div>
@@ -77,7 +77,7 @@
         <div class="empty-sensor-card" v-else>
           <p class="m-0 mb-2">No hardware sensor profile linked to this station.</p>
           <button
-              v-if="authStore.canManageHardware"
+              v-if="authStore?.canManageHardware"
               @click="openAddSensorModal"
               class="action-btn secondary-action-btn"
           >
@@ -86,9 +86,9 @@
           </button>
         </div>
 
-        <!-- Register Sensor Button (if sensor already exists, but user wants to add an extra node) -->
+        <!-- Register Sensor Button -->
         <button
-            v-if="authStore.canManageHardware && activeSensor"
+            v-if="authStore?.canManageHardware && activeSensor"
             @click="openAddSensorModal"
             class="add-extra-sensor-btn"
         >
@@ -204,7 +204,7 @@
           <div class="form-group">
             <label class="form-label">Calibration Offset Height (m) *</label>
             <input v-model.number="newSensor.calibration_offset" type="number" step="0.01" placeholder="3.00" required class="form-input" />
-            <span class="field-help">Total height $H$ from sensor datum to river sand bed.</span>
+            <span class="field-help">Total height H from sensor datum to river sand bed.</span>
           </div>
 
           <div class="modal-actions">
@@ -223,23 +223,22 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
-const initMapEngine = () => {
-  if (!mapContainer.value) return;
+import api from '../api';
+import { useAuthStore } from '../stores/auth';
 
-  mapInstance = L.map(mapContainer.value, {
-    zoomControl: false
-  }).setView([-1.286389, 36.817223], 7);
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
-  // Free OpenStreetMap Standard Tiles
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-  }).addTo(mapInstance);
+// Safely initialize store
+const authStore = useAuthStore();
 
-  L.control.zoom({ position: 'bottomright' }).addTo(mapInstance);
-  markersGroup.addTo(mapInstance);
-};
+// Explicitly declare the DOM template ref
+const mapContainer = ref(null);
+let mapInstance = null;
+const markersGroup = L.layerGroup();
 
+const stations = ref([]);
+const activeStation = ref(null);
 const activeSensor = ref(null);
 
 // Modal visibility & form models
@@ -269,6 +268,22 @@ const handleResize = () => {
   }
 };
 
+const initMapEngine = () => {
+  if (!mapContainer.value) return;
+
+  // Clean map initialization with public OSM tiles
+  mapInstance = L.map(mapContainer.value, {
+    zoomControl: false
+  }).setView([-1.286389, 36.817223], 7);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(mapInstance);
+
+  L.control.zoom({ position: 'bottomright' }).addTo(mapInstance);
+  markersGroup.addTo(mapInstance);
+};
 
 const loadStationsFramework = async (targetStationId = null) => {
   try {
@@ -296,7 +311,7 @@ const loadStationsFramework = async (targetStationId = null) => {
 
           marker.on('click', () => {
             inspectStation(station);
-            mapInstance.panTo(latLng);
+            if (mapInstance) mapInstance.panTo(latLng);
           });
 
           marker.bindPopup(`<b style="font-weight:600;color:#292524;">${station.station_code}</b><br><span style="font-size:12px;color:#78716c;">${station.station_name}</span>`);
@@ -304,14 +319,14 @@ const loadStationsFramework = async (targetStationId = null) => {
         }
       });
 
-      if (boundsArray.length > 0 && !targetStationId) {
+      if (boundsArray.length > 0 && mapInstance && !targetStationId) {
         mapInstance.fitBounds(boundsArray, { padding: [40, 40] });
       }
 
       if (targetStationId) {
         const found = stations.value.find(s => s.id === targetStationId);
         if (found) inspectStation(found);
-      } else if (!activeStation.value) {
+      } else if (!activeStation.value && stations.value.length > 0) {
         inspectStation(stations.value[0]);
       }
     }
@@ -358,7 +373,7 @@ const submitCreateStation = async () => {
       status: 'active'
     };
     await loadStationsFramework(res.data.id);
-    if (res.data.latitude && res.data.longitude) {
+    if (res.data.latitude && res.data.longitude && mapInstance) {
       mapInstance.setView([res.data.latitude, res.data.longitude], 12);
     }
   } catch (error) {
@@ -396,19 +411,19 @@ const getStatusClass = (status) => {
 };
 
 onMounted(async () => {
-  initMapEngine();
   await nextTick();
+  initMapEngine();
 
-  // Force Leaflet to recalculate exact container dimensions
   setTimeout(() => {
     if (mapInstance) {
       mapInstance.invalidateSize();
     }
-  }, 200);
+  }, 150);
 
   await loadStationsFramework();
   window.addEventListener('resize', handleResize);
 });
+
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
   if (mapInstance) {
@@ -456,7 +471,7 @@ onUnmounted(() => {
 .map-canvas-panel {
   width: 100%;
   height: 100%;
-  min-height: 450px;
+  min-height: 280px;
   z-index: 10;
 }
 
