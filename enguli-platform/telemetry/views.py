@@ -22,16 +22,27 @@ class TelemetryIngestView(APIView):
 
             serial = data['resolved_serial']
             raw_distance = data['resolved_distance']
+            stn_id = data.get('station_id')
+            stn_code = data.get('station_code')
 
-            # 1. Ensure at least one station exists
-            station = Station.objects.first()
+            # 1. Resolve Target Station from ESP32 payload
+            target_station = None
+            if stn_id is not None:
+                target_station = Station.objects.filter(id=stn_id).first()
+
+            if not target_station and stn_code:
+                target_station = Station.objects.filter(station_code__iexact=str(stn_code).strip()).first()
+
+            # Fallback to the first station in the database if not matched
+            station = target_station or Station.objects.first()
+
             if not station:
                 return Response(
                     {"error": "No station found in database. Create a Station in Django Admin first."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # 2. Fetch or safely auto-register the sensor
+            # 2. Fetch or Auto-Register Sensor with the resolved station
             try:
                 sensor, created = Sensor.objects.select_related('station').get_or_create(
                     serial_number=serial,
@@ -42,22 +53,29 @@ class TelemetryIngestView(APIView):
                     }
                 )
             except Exception as sensor_err:
-                print(f"[Sensor Auto-Registration Error]: {sensor_err}")
-                # Fallback: try fetching existing sensor or link station
+                print(f"[Sensor Auto-Registration Notice]: {sensor_err}")
                 sensor = Sensor.objects.filter(serial_number=serial).first()
                 if not sensor:
                     raise sensor_err
                 created = False
 
+            # If station was explicitly passed and differs from sensor's current station, update it
+            if target_station and sensor.station != target_station:
+                sensor.station = target_station
+                try:
+                    sensor.save(update_fields=['station'])
+                except Exception:
+                    sensor.save()
+
             active_station = sensor.station or station
 
-            # 3. Calibration: Water Depth = Reference Height - Measured Distance
+            # 3. Calibration: Water Depth = Sensor Mounting Datum Offset - Measured Distance
             offset = getattr(sensor, 'calibration_offset', 3.0)
             if offset is None:
                 offset = 3.0
             calibrated_depth = offset - raw_distance
 
-            # 4. Save reading record
+            # 4. Save Reading Record
             reading = SensorReading.objects.create(
                 sensor=sensor,
                 station=active_station,
@@ -66,7 +84,7 @@ class TelemetryIngestView(APIView):
                 signal_strength=data.get('signal_strength'),
             )
 
-            # 5. Update sensor diagnostics safely if fields exist
+            # 5. Update sensor diagnostics safely
             if data.get('battery_level') is not None and hasattr(sensor, 'battery_level'):
                 sensor.battery_level = data['battery_level']
                 try:
@@ -74,7 +92,7 @@ class TelemetryIngestView(APIView):
                 except Exception:
                     sensor.save()
 
-            # 6. Trigger alert safely
+            # 6. Trigger Alerts safely
             try:
                 generate_alert(sensor, active_station, reading)
             except Exception as alert_err:
@@ -83,8 +101,10 @@ class TelemetryIngestView(APIView):
             return Response({
                 "message": "Reading processed successfully",
                 "auto_registered": created,
-                "station": getattr(active_station, 'station_code', str(active_station)),
+                "station_id": active_station.id,
+                "station_code": getattr(active_station, 'station_code', str(active_station)),
                 "sensor": sensor.serial_number,
+                "raw_distance_mean": round(raw_distance, 3),
                 "water_level": round(reading.water_level, 3)
             }, status=status.HTTP_201_CREATED)
 
@@ -142,6 +162,7 @@ class ExportTelemetryCSVView(APIView):
         writer = csv.writer(response)
         writer.writerow([
             'Log ID',
+            'Station ID',
             'Station Code',
             'Station Name',
             'Sensor Serial',
@@ -154,6 +175,7 @@ class ExportTelemetryCSVView(APIView):
         for log in queryset[:5000]:
             writer.writerow([
                 log.id,
+                log.station.id if log.station else '',
                 log.station.station_code if log.station else 'N/A',
                 log.station.station_name if log.station else 'N/A',
                 log.sensor.serial_number if log.sensor else 'N/A',
