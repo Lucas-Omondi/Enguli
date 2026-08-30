@@ -58,7 +58,7 @@ api.interceptors.response.use(
 export default {
     // Auth endpoints
     login(username, password) {
-        return api.post('/auth/token/', { username, password });
+        return api.post('/api/auth/token/', { username, password });
     },
     getCurrentUser() {
         return api.get('/auth/me/');
