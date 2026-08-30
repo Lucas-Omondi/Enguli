@@ -275,7 +275,6 @@ const setupChartEngine = (labels, values) => {
     }
   };
 };
-
 onMounted(() => {
   initAnalytics();
 });
