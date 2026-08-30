@@ -273,21 +273,6 @@ const handleResize = () => {
   }
 };
 
-const initMapEngine = () => {
-  if (!mapContainer.value) return;
-
-  mapInstance = L.map(mapContainer.value, {
-    zoomControl: false
-  }).setView([-1.286389, 36.817223], 7);
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-  }).addTo(mapInstance);
-
-  L.control.zoom({ position: 'bottomright' }).addTo(mapInstance);
-  markersGroup.addTo(mapInstance);
-};
 
 const loadStationsFramework = async (targetStationId = null) => {
   try {
