@@ -1,6 +1,20 @@
 from rest_framework import serializers
 from .models import Station, Sensor
+from django.contrib.auth.models import User
+from accounts.models import UserProfile
 
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserProfile
+        fields = ['role', 'phone_number']
+
+
+class UserDetailSerializer(serializers.ModelSerializer):
+    profile = UserProfileSerializer(read_only=True)
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'profile']
 
 class StationSerializer(serializers.ModelSerializer):
 

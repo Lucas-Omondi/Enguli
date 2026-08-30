@@ -15,7 +15,7 @@
     "axios": "^1.18.1",
     "chart.js": "^4.5.1",
     "leaflet": "^1.9.4",
-    "nvm": "^0.0.4",
+    "pinia": "^4.0.3",
     "postcss": "^8.5.16",
     "primeicons": "^7.0.0",
     "primevue": "^4.5.5",

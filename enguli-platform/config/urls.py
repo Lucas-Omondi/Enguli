@@ -17,15 +17,21 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import (TokenObtainPairView, TokenRefreshView)
 from telemetry.views import TelemetryIngestView
 from stations.views import StationViewSet, SensorViewSet
+from accounts.views import CurrentUserView, UserManagementViewSet
 
 router = DefaultRouter()
 router.register(r'stations', StationViewSet)
 router.register(r'sensors', SensorViewSet)
+router.register(r'users', UserManagementViewSet, basename='users')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/auth/me/', CurrentUserView.as_view(), name='current_user'),
     path('api/', include(router.urls)),
     path('api/telemetry/', include('telemetry.urls')),
     path('api/analytics/', include('analytics.urls')),
