@@ -273,11 +273,10 @@ const initMapEngine = () => {
   mapInstance = L.map(mapContainer.value, {
     zoomControl: false
   }).setView([-1.286389, 36.817223], 7);
-
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-    subdomains: 'abcd',
-    maxZoom: 20
+  
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(mapInstance);
 
   L.control.zoom({ position: 'bottomright' }).addTo(mapInstance);
