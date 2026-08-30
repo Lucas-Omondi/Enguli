@@ -1,0 +1,164 @@
+#include <WiFi.h>
+#include <WiFiMulti.h>
+#include <HTTPClient.h>
+#include <WiFiClientSecure.h>
+#include <ArduinoJson.h>
+
+WiFiMulti wifiMulti;
+
+// ==========================================
+// 1. BACKEND & HARDWARE CONFIGURATION
+// ==========================================
+// Replace YOUR-APP-NAME with your live Render app subdomain (must end with /)
+const char* serverUrl = "https://enguli-gw.onrender.com/api/telemetry/ingest/";
+
+// Sampling interval: 5 minutes = 300,000 ms (set to 10000 for quick testing)
+const unsigned long SAMPLING_INTERVAL_MS = 300000; 
+
+// Pin definitions
+const int trigPin   = 5;   // GPIO 5  -> HC-SR04 TRIG
+const int echoPin   = 18;  // GPIO 18 -> HC-SR04 ECHO (via voltage divider)
+const int onboardLed = 2;  // GPIO 2  -> ESP32 onboard status LED
+
+#define SOUND_SPEED 0.0343 // Speed of sound in air (cm/µs)
+
+unsigned long lastSampleTime = 0;
+bool initialReadingSent = false;
+
+// ==========================================
+// 2. DYNAMIC HARDWARE SERIAL ID
+// Reads factory silicon eFuse MAC to generate unique hardware ID
+// ==========================================
+String getDeviceSerialNumber() {
+  uint64_t chipid = ESP.getEfuseMac();
+  char serialBuffer[32];
+  snprintf(serialBuffer, sizeof(serialBuffer), "ESP32-%04X%08X", (uint16_t)(chipid >> 32), (uint32_t)chipid);
+  return String(serialBuffer);
+}
+
+// ==========================================
+// 3. MULTI-WIFI SETUP
+// ==========================================
+void setupWiFiList() {
+  WiFi.mode(WIFI_STA);
+
+  // Add all field/lab networks you use:
+  wifiMulti.addAP("MH 325", "Maisha@1470950");
+  wifiMulti.addAP("dekut", "dekut@ict2023");
+  wifiMulti.addAP("Lab_Network_SSID", "Lab_Password");
+
+  Serial.println("\n[Wi-Fi] Scanning and connecting to best network...");
+  
+  while (wifiMulti.run() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+    digitalWrite(onboardLed, !digitalRead(onboardLed));
+  }
+
+  digitalWrite(onboardLed, LOW);
+  Serial.println("\n[Wi-Fi Connected!]");
+  Serial.printf("Connected SSID : %s\n", WiFi.SSID().c_str());
+  Serial.printf("Assigned IP    : %s\n", WiFi.localIP().toString().c_str());
+}
+
+// ==========================================
+// 4. DISTANCE MEASUREMENT (METERS)
+// ==========================================
+float measureDistanceMeters() {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  long duration = pulseIn(echoPin, HIGH, 30000); // 30ms timeout (~5m max range)
+  if (duration == 0) return -1.0; 
+
+  float distanceCm = (duration * SOUND_SPEED) / 2.0;
+  return distanceCm / 100.0; // Return in meters
+}
+
+// ==========================================
+// 5. HTTPS TELEMETRY INGESTION
+// ==========================================
+void transmitPayload(float distance) {
+  if (wifiMulti.run() != WL_CONNECTED) {
+    Serial.println("[Error] Wi-Fi lost. Attempting reconnect...");
+    return;
+  }
+
+  WiFiClientSecure client;
+  client.setInsecure(); // Handles Render HTTPS certificate handshake seamlessly
+
+  HTTPClient http;
+  http.begin(client, serverUrl);
+  http.addHeader("Content-Type", "application/json");
+
+  // Format payload matching serializer fields
+  StaticJsonDocument<256> doc;
+  doc["serial_number"]   = getDeviceSerialNumber();
+  doc["raw_distance"]    = distance;
+  doc["battery_level"]   = 100.0; // Replace with ADC battery divider read if wired
+  doc["signal_strength"] = WiFi.RSSI();
+
+  String payload;
+  serializeJson(doc, payload);
+
+  Serial.printf("\n[Ingest] Transmitting: %s\n", payload.c_str());
+
+  int httpCode = http.POST(payload);
+
+  if (httpCode > 0) {
+    String response = http.getString();
+    Serial.printf("[Cloud Success] HTTP %d -> %s\n", httpCode, response.c_str());
+    
+    // Quick double blink for transmission success
+    digitalWrite(onboardLed, HIGH); delay(100);
+    digitalWrite(onboardLed, LOW);  delay(100);
+    digitalWrite(onboardLed, HIGH); delay(100);
+    digitalWrite(onboardLed, LOW);
+  } else {
+    Serial.printf("[Cloud Error] HTTP Failed: %s\n", http.errorToString(httpCode).c_str());
+  }
+
+  http.end();
+}
+
+// ==========================================
+// 6. MAIN SETUP & LOOP
+// ==========================================
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  pinMode(onboardLed, OUTPUT);
+
+  Serial.println("\n==========================================");
+  Serial.println("   ENGULI SAND RIVER TELEMETRY NODE       ");
+  Serial.printf("   Device Hardware ID: %s\n", getDeviceSerialNumber().c_str());
+  Serial.println("==========================================");
+
+  setupWiFiList();
+}
+
+void loop() {
+  unsigned long currentMillis = millis();
+
+  if (!initialReadingSent || (currentMillis - lastSampleTime >= SAMPLING_INTERVAL_MS)) {
+    float rawDistance = measureDistanceMeters();
+
+    if (rawDistance > 0.0) {
+      Serial.printf("\n[Sensor Valid] Distance to surface: %.3f m\n", rawDistance);
+      transmitPayload(rawDistance);
+      
+      lastSampleTime = currentMillis;
+      initialReadingSent = true;
+      Serial.printf("[Standby] Next cycle in %lu minutes...\n", SAMPLING_INTERVAL_MS / 60000);
+    } else {
+      Serial.println("[Warning] Echo timeout or out of range. Retrying in 3s...");
+      delay(3000);
+    }
+  }
+}
