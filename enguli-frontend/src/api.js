@@ -94,7 +94,7 @@ export default {
     // Aggregates & Alerts
 // Ensure it uses the exact name of your axios instance at the top of src/api.js (e.g., apiClient or api):
     getStationAnalytics(stationId) {
-        return apiClient.get(`/api/telemetry/readings/?station_id=${stationId}`);
+        return api.get(`/api/telemetry/readings/?station_id=${stationId}`);
     },
     getActiveAlerts() {
         return api.get('/alerts/', { params: { resolved: 'false' } });

@@ -69,19 +69,23 @@ const loadDashboardData = async () => {
     const alertsResponse = await api.getActiveAlerts();
     activeAlerts.value = alertsResponse.data || [];
 
+    let analyticsData = null;
     try {
       const analyticsResponse = await api.getStationAnalytics(1);
-      // process analyticsResponse.data ...
+      analyticsData = analyticsResponse?.data || null;
     } catch (error) {
       console.warn("Analytics telemetry not yet populated for Station 1:", error);
     }
-    const data = analyticsResponse.data;
 
-    metrics.value = {
-      avg: typeof data.average_water_level === 'number' ? data.average_water_level.toFixed(2) : '0.00',
-      min: typeof data.min_water_level === 'number' ? data.min_water_level.toFixed(2) : '0.00',
-      max: typeof data.max_water_level === 'number' ? data.max_water_level.toFixed(2) : '0.00'
-    };
+    if (analyticsData) {
+      metrics.value = {
+        avg: typeof analyticsData.average_water_level === 'number' ? analyticsData.average_water_level.toFixed(2) : '0.00',
+        min: typeof analyticsData.min_water_level === 'number' ? analyticsData.min_water_level.toFixed(2) : '0.00',
+        max: typeof analyticsData.max_water_level === 'number' ? analyticsData.max_water_level.toFixed(2) : '0.00'
+      };
+    } else {
+      metrics.value = { avg: '0.00', min: '0.00', max: '0.00' };
+    }
   } catch (error) {
     console.error("Dashboard ingestion error:", error);
   }
@@ -99,7 +103,6 @@ const formatTime = (isoString) => {
   const date = new Date(isoString);
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
-
 onMounted(() => {
   loadDashboardData();
 });
