@@ -222,21 +222,22 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
-import api from '../api';
-import { useAuthStore } from '../stores/auth';
+const initMapEngine = () => {
+  if (!mapContainer.value) return;
 
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+  mapInstance = L.map(mapContainer.value, {
+    zoomControl: false
+  }).setView([-1.286389, 36.817223], 7);
 
-const authStore = useAuthStore();
+  // Free, completely keyless public tile layer
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(mapInstance);
 
-const mapContainer = ref(null);
-let mapInstance = null;
-const markersGroup = L.layerGroup();
-
-const stations = ref([]);
-const activeStation = ref(null);
+  L.control.zoom({ position: 'bottomright' }).addTo(mapInstance);
+  markersGroup.addTo(mapInstance);
+};
 const activeSensor = ref(null);
 
 // Modal visibility & form models
