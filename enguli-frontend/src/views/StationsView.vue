@@ -273,7 +273,7 @@ const initMapEngine = () => {
   mapInstance = L.map(mapContainer.value, {
     zoomControl: false
   }).setView([-1.286389, 36.817223], 7);
-  
+
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -411,10 +411,17 @@ const getStatusClass = (status) => {
 onMounted(async () => {
   initMapEngine();
   await nextTick();
+
+  // Force Leaflet to recalculate exact container dimensions
+  setTimeout(() => {
+    if (mapInstance) {
+      mapInstance.invalidateSize();
+    }
+  }, 200);
+
   await loadStationsFramework();
   window.addEventListener('resize', handleResize);
 });
-
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
   if (mapInstance) {
