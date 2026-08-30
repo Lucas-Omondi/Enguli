@@ -69,7 +69,12 @@ const loadDashboardData = async () => {
     const alertsResponse = await api.getActiveAlerts();
     activeAlerts.value = alertsResponse.data || [];
 
-    const analyticsResponse = await api.getStationAnalytics(1);
+    try {
+      const analyticsResponse = await api.getStationAnalytics(1);
+      // process analyticsResponse.data ...
+    } catch (error) {
+      console.warn("Analytics telemetry not yet populated for Station 1:", error);
+    }
     const data = analyticsResponse.data;
 
     metrics.value = {
