@@ -78,8 +78,6 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import api from '../api';
-
 import { Line } from 'vue-chartjs';
 import {
   Chart as ChartJS,
@@ -104,17 +102,27 @@ const metrics = ref({ avg: '0.00', min: '0.00', max: '0.00' });
 const chartData = ref({ labels: [], datasets: [] });
 const chartOptions = ref({});
 
+// Dynamic Base URL Resolution
+const API_BASE = import.meta.env.VITE_API_URL || window.location.origin;
+
 const initAnalytics = async () => {
   try {
-    const stationsResponse = await api.getStations();
-    stations.value = stationsResponse.data || [];
+    const res = await fetch(`${API_BASE}/api/stations/stations/`);
+    if (!res.ok) {
+      throw new Error(`Stations HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    stations.value = data?.results || (Array.isArray(data) ? data : []);
 
     if (stations.value.length > 0) {
       selectedStationId.value = stations.value[0].id;
       await fetchStationData(selectedStationId.value);
+    } else {
+      loaded.value = true;
     }
   } catch (error) {
     console.error("Hydrological initialization failure:", error);
+    loaded.value = true;
   }
 };
 
@@ -126,19 +134,16 @@ const fetchStationData = async (stationId) => {
       activeStationDetails.value = { code: matchedStation.station_code };
     }
 
-    // Determine backend base URL from env or fallback to Render backend
-    const apiBase = import.meta.env.VITE_API_URL || 'https://enguli-gw.onrender.com';
-    const endpoint = `${apiBase}/api/telemetry/readings/?station_id=${stationId}`;
-
-    const res = await fetch(endpoint);
+    // Direct HTTP fetch - avoids broken internal api client methods
+    const res = await fetch(`${API_BASE}/api/telemetry/readings/?station_id=${stationId}`);
     if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`);
+      throw new Error(`Readings HTTP ${res.status}`);
     }
     const data = await res.json();
-    const logs = data?.results || data || [];
+    const logs = data?.results || (Array.isArray(data) ? data : []);
 
-    if (Array.isArray(logs) && logs.length > 0) {
-      // Reorder from oldest to newest for chronological left-to-right chart plotting
+    if (logs.length > 0) {
+      // Oldest to newest for proper left-to-right chart progression
       const chronologicalLogs = [...logs].reverse();
 
       const timelineLabels = [];
@@ -191,6 +196,7 @@ const fetchStationData = async (stationId) => {
     loaded.value = true;
   }
 };
+
 const handleStationChange = () => {
   if (selectedStationId.value) {
     fetchStationData(selectedStationId.value);
@@ -222,7 +228,7 @@ const setupChartEngine = (labels, values) => {
         pointBorderColor: '#ffffff',
         pointBorderWidth: 1.5,
         pointHoverRadius: 6,
-        pointRadius: values.length > 50 ? 0 : 3.5 // Hide individual dots if high density log
+        pointRadius: values.length > 50 ? 0 : 3.5
       }
     ]
   };
