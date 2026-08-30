@@ -1,7 +1,12 @@
 import { defineStore } from 'pinia';
 import axios from 'axios';
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api').replace(/\/$/, '');
+const rawBase = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+// Strip any trailing slash, then ensure it ends with /api
+const sanitizedBase = rawBase.replace(/\/$/, '');
+export const API_BASE_URL = sanitizedBase.endsWith('/api')
+    ? sanitizedBase
+    : `${sanitizedBase}/api`;
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({
@@ -42,7 +47,7 @@ export const useAuthStore = defineStore('auth', {
             this.authError = null;
 
             try {
-                const response = await axios.post(`${API_BASE_URL}/auth/token/`, {
+                const response = await axios.post(`${API_BASE_URL}/api/auth/token/`, {
                     username,
                     password
                 });
