@@ -222,6 +222,7 @@
 </template>
 
 <script setup>
+import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 const initMapEngine = () => {
   if (!mapContainer.value) return;
 
