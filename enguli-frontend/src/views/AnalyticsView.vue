@@ -126,18 +126,18 @@ const fetchStationData = async (stationId) => {
       activeStationDetails.value = { code: matchedStation.station_code };
     }
 
-    // 1. Fetch live telemetry logs using the dedicated api helper
-    let logs = [];
-    if (typeof api.getSensorReadings === 'function') {
-      const response = await api.getSensorReadings(stationId);
-      logs = response.data?.results || response.data || [];
-    } else {
-      // Fallback if direct Axios instance is exported
-      const response = await api.get(`/api/telemetry/readings/?station_id=${stationId}`);
-      logs = response.data?.results || response.data || [];
-    }
+    // Determine backend base URL from env or fallback to Render backend
+    const apiBase = import.meta.env.VITE_API_URL || 'https://enguli-gw.onrender.com';
+    const endpoint = `${apiBase}/api/telemetry/readings/?station_id=${stationId}`;
 
-    if (logs.length > 0) {
+    const res = await fetch(endpoint);
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    const data = await res.json();
+    const logs = data?.results || data || [];
+
+    if (Array.isArray(logs) && logs.length > 0) {
       // Reorder from oldest to newest for chronological left-to-right chart plotting
       const chronologicalLogs = [...logs].reverse();
 
@@ -156,7 +156,6 @@ const fetchStationData = async (stationId) => {
           if (val < minVal) minVal = val;
           if (val > maxVal) maxVal = val;
 
-          // Format UTC timestamp to readable local time (e.g., "08:15 PM")
           if (entry.timestamp) {
             const date = new Date(entry.timestamp);
             const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -167,7 +166,6 @@ const fetchStationData = async (stationId) => {
         }
       });
 
-      // Calculate real summary statistics from live readings
       const count = waterLevelValues.length;
       if (count > 0) {
         metrics.value = {
@@ -181,7 +179,6 @@ const fetchStationData = async (stationId) => {
 
       setupChartEngine(timelineLabels, waterLevelValues);
     } else {
-      // No readings recorded yet for this station
       metrics.value = { avg: '0.00', min: '0.00', max: '0.00' };
       setupChartEngine([], []);
     }
