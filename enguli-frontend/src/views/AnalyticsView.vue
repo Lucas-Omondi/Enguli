@@ -126,24 +126,19 @@ const fetchStationData = async (stationId) => {
       activeStationDetails.value = { code: matchedStation.station_code };
     }
 
-    // 1. Fetch live historical time-series records for this station
-    // If api.getSensorReadings exists, call it; otherwise fetch from endpoint directly:
-    // Direct call supporting whatever structure your api wrapper uses:
-    let response;
+    // 1. Fetch live telemetry logs using the dedicated api helper
+    let logs = [];
     if (typeof api.getSensorReadings === 'function') {
-      response = await api.getSensorReadings(stationId);
-    } else if (typeof api.get === 'function') {
-      response = await api.get(`/api/telemetry/readings/?station_id=${stationId}`);
-    } else if (api.client && typeof api.client.get === 'function') {
-      response = await api.client.get(`/api/telemetry/readings/?station_id=${stationId}`);
+      const response = await api.getSensorReadings(stationId);
+      logs = response.data?.results || response.data || [];
     } else {
-      // If api is a plain Axios instance
-      response = await api(`/api/telemetry/readings/?station_id=${stationId}`);
+      // Fallback if direct Axios instance is exported
+      const response = await api.get(`/api/telemetry/readings/?station_id=${stationId}`);
+      logs = response.data?.results || response.data || [];
     }
-    const logs = response.data?.results || response.data || [];
 
     if (logs.length > 0) {
-      // Backend returns '-timestamp' (descending). Reverse to chronological order (left to right)
+      // Reorder from oldest to newest for chronological left-to-right chart plotting
       const chronologicalLogs = [...logs].reverse();
 
       const timelineLabels = [];
@@ -161,7 +156,7 @@ const fetchStationData = async (stationId) => {
           if (val < minVal) minVal = val;
           if (val > maxVal) maxVal = val;
 
-          // Format UTC timestamp to readable local time (e.g., "08:15 PM" or "Aug 30, 20:15")
+          // Format UTC timestamp to readable local time (e.g., "08:15 PM")
           if (entry.timestamp) {
             const date = new Date(entry.timestamp);
             const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -172,7 +167,7 @@ const fetchStationData = async (stationId) => {
         }
       });
 
-      // Update aggregate metrics from actual dataset
+      // Calculate real summary statistics from live readings
       const count = waterLevelValues.length;
       if (count > 0) {
         metrics.value = {
@@ -186,7 +181,7 @@ const fetchStationData = async (stationId) => {
 
       setupChartEngine(timelineLabels, waterLevelValues);
     } else {
-      // Empty station state
+      // No readings recorded yet for this station
       metrics.value = { avg: '0.00', min: '0.00', max: '0.00' };
       setupChartEngine([], []);
     }
@@ -199,7 +194,6 @@ const fetchStationData = async (stationId) => {
     loaded.value = true;
   }
 };
-
 const handleStationChange = () => {
   if (selectedStationId.value) {
     fetchStationData(selectedStationId.value);
