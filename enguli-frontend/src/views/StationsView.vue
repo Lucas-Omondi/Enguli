@@ -469,7 +469,7 @@ onUnmounted(() => {
 .map-canvas-panel {
   width: 100%;
   height: 100%;
-  min-height: 280px;
+  min-height: 450px;
   z-index: 10;
 }
 
