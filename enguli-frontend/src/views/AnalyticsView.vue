@@ -128,10 +128,18 @@ const fetchStationData = async (stationId) => {
 
     // 1. Fetch live historical time-series records for this station
     // If api.getSensorReadings exists, call it; otherwise fetch from endpoint directly:
-    const response = typeof api.getSensorReadings === 'function'
-        ? await api.getSensorReadings({ station_id: stationId })
-        : await api.client.get(`/api/telemetry/readings/?station_id=${stationId}`);
-
+    // Direct call supporting whatever structure your api wrapper uses:
+    let response;
+    if (typeof api.getSensorReadings === 'function') {
+      response = await api.getSensorReadings(stationId);
+    } else if (typeof api.get === 'function') {
+      response = await api.get(`/api/telemetry/readings/?station_id=${stationId}`);
+    } else if (api.client && typeof api.client.get === 'function') {
+      response = await api.client.get(`/api/telemetry/readings/?station_id=${stationId}`);
+    } else {
+      // If api is a plain Axios instance
+      response = await api(`/api/telemetry/readings/?station_id=${stationId}`);
+    }
     const logs = response.data?.results || response.data || [];
 
     if (logs.length > 0) {

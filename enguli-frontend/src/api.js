@@ -115,4 +115,9 @@ export default {
             responseType: 'blob'
         });
     },
+    export const getSensorReadings = (stationId) => {
+        return apiClient.get(`/api/telemetry/readings/`, {
+            params: { station_id: stationId }
+        });
+    },
 };
