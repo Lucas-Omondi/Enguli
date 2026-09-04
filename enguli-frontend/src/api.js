@@ -15,9 +15,9 @@ const api = axios.create({
     }
 });
 
+// Request Interceptor: Attach JWT Bearer token
 api.interceptors.request.use(
     (config) => {
-        // Adjust the key name if stored differently (e.g., 'access_token', 'token', or from auth store)
         const token = localStorage.getItem('access_token') || localStorage.getItem('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
@@ -27,6 +27,7 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
+// Response Interceptor: Refresh token on 401
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -56,12 +57,10 @@ api.interceptors.response.use(
     }
 );
 
-
-
 export default {
-    // Auth endpoints
+    // Auth endpoints (fixed: removed redundant /api)
     login(username, password) {
-        return api.post('/api/auth/token/', { username, password });
+        return api.post('/auth/token/', { username, password });
     },
     getCurrentUser() {
         return api.get('/auth/me/');
@@ -69,30 +68,33 @@ export default {
 
     // Stations
     getStations() {
-        return api.get('/stations/');
+        // If your Django route is /api/stations/stations/, change to '/stations/stations/'
+        return api.get('/stations/stations/');
     },
     createStation(stationData) {
-        return api.post('/stations/', stationData);
+        return api.post('/stations/stations/', stationData);
     },
 
     // Sensors
     getSensors(stationId = null) {
         const params = stationId ? { station_id: stationId } : {};
-        return api.get('/sensors/', { params });
+        return api.get('/sensors/sensors/', { params });
     },
     createSensor(sensorData) {
-        return api.post('/sensors/', sensorData);
+        return api.post('/sensors/sensors/', sensorData);
     },
     getSensorReadings(stationId) {
-        return apiClient.get('/api/telemetry/readings/', {
+        // fixed: changed apiClient to api
+        return api.get('/telemetry/readings/', {
             params: { station_id: stationId }
         });
     },
 
     // Aggregates & Alerts
-// Ensure it uses the exact name of your axios instance at the top of src/api.js (e.g., apiClient or api):
     getStationAnalytics(stationId) {
-        return api.get(`/api/telemetry/readings/?station_id=${stationId}`);
+        return api.get('/telemetry/readings/', {
+            params: { station_id: stationId }
+        });
     },
     getActiveAlerts() {
         return api.get('/alerts/', { params: { resolved: 'false' } });
@@ -124,5 +126,4 @@ export default {
             responseType: 'blob'
         });
     },
-
 };
