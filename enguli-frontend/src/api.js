@@ -78,10 +78,10 @@ export default {
     // Sensors
     getSensors(stationId = null) {
         const params = stationId ? { station_id: stationId } : {};
-        return api.get('/sensors/sensors/', { params });
+        return api.get('/sensors/', { params });
     },
     createSensor(sensorData) {
-        return api.post('/sensors/sensors/', sensorData);
+        return api.post('/sensors/', sensorData);
     },
     getSensorReadings(stationId) {
         // fixed: changed apiClient to api
