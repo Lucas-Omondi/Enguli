@@ -9,7 +9,7 @@ export const API_BASE_URL = sanitizedBase.endsWith('/api')
 
 const api = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 15000,
+    timeout: 60000,
     headers: {
         'Content-Type': 'application/json',
     }
@@ -18,7 +18,7 @@ const api = axios.create({
 api.interceptors.request.use(
     (config) => {
         // Adjust the key name if stored differently (e.g., 'access_token', 'token', or from auth store)
-        const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -33,7 +33,7 @@ api.interceptors.response.use(
         const originalRequest = error.config;
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
-            const refreshToken = localStorage.getItem('refreshToken');
+            const refreshToken = localStorage.getItem('refresh_token');
 
             if (refreshToken) {
                 try {
@@ -41,12 +41,12 @@ api.interceptors.response.use(
                         refresh: refreshToken,
                     });
                     const newAccess = res.data.access;
-                    localStorage.setItem('accessToken', newAccess);
+                    localStorage.setItem('access_token', newAccess);
                     originalRequest.headers.Authorization = `Bearer ${newAccess}`;
                     return api(originalRequest);
                 } catch (refreshErr) {
-                    localStorage.removeItem('accessToken');
-                    localStorage.removeItem('refreshToken');
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
                     window.location.href = '/login';
                     return Promise.reject(refreshErr);
                 }
