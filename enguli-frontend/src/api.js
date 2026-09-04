@@ -69,10 +69,10 @@ export default {
     // Stations
     getStations() {
         // If your Django route is /api/stations/stations/, change to '/stations/stations/'
-        return api.get('/stations/stations/');
+        return api.get('/stations/');
     },
     createStation(stationData) {
-        return api.post('/stations/stations/', stationData);
+        return api.post('/stations/', stationData);
     },
 
     // Sensors
@@ -85,7 +85,7 @@ export default {
     },
     getSensorReadings(stationId) {
         // fixed: changed apiClient to api
-        return api.get('/telemetry/readings/', {
+        return api.get('/telemetry/logs/', {
             params: { station_id: stationId }
         });
     },
