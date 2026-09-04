@@ -90,6 +90,7 @@ import {
   CategoryScale,
   Filler
 } from 'chart.js';
+import api from '@/api'; // Centralized Axios instance with auth interceptor
 
 ChartJS.register(Title, Tooltip, Legend, LineElement, LinearScale, PointElement, CategoryScale, Filler);
 
@@ -102,16 +103,10 @@ const metrics = ref({ avg: '0.00', min: '0.00', max: '0.00' });
 const chartData = ref({ labels: [], datasets: [] });
 const chartOptions = ref({});
 
-// Dynamic Base URL Resolution
-const API_BASE = import.meta.env.VITE_API_URL || window.location.origin;
-
 const initAnalytics = async () => {
   try {
-    const res = await fetch(`${API_BASE}/api/stations/stations/`);
-    if (!res.ok) {
-      throw new Error(`Stations HTTP ${res.status}`);
-    }
-    const data = await res.json();
+    const res = await api.getStations();
+    const data = res.data;
     stations.value = data?.results || (Array.isArray(data) ? data : []);
 
     if (stations.value.length > 0) {
@@ -134,16 +129,13 @@ const fetchStationData = async (stationId) => {
       activeStationDetails.value = { code: matchedStation.station_code };
     }
 
-    // Direct HTTP fetch - avoids broken internal api client methods
-    const res = await fetch(`${API_BASE}/api/telemetry/readings/?station_id=${stationId}`);
-    if (!res.ok) {
-      throw new Error(`Readings HTTP ${res.status}`);
-    }
-    const data = await res.json();
+    // Uses centralized api client which manages baseURL and auth headers
+    const res = await api.getStationAnalytics(stationId);
+    const data = res.data;
     const logs = data?.results || (Array.isArray(data) ? data : []);
 
     if (logs.length > 0) {
-      // Oldest to newest for proper left-to-right chart progression
+      // Chronological progression for left-to-right plotting
       const chronologicalLogs = [...logs].reverse();
 
       const timelineLabels = [];
@@ -275,6 +267,7 @@ const setupChartEngine = (labels, values) => {
     }
   };
 };
+
 onMounted(() => {
   initAnalytics();
 });
