@@ -92,7 +92,7 @@ export default {
 
     // Aggregates & Alerts
     getStationAnalytics(stationId) {
-        return api.get('/telemetry/readings/', {
+        return api.get('/telemetry/logs/', {
             params: { station_id: stationId }
         });
     },
