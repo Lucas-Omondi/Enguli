@@ -90,7 +90,7 @@ import {
   CategoryScale,
   Filler
 } from 'chart.js';
-import api from '@/api'; // Centralized Axios instance with auth interceptor
+import api from ".../api";
 
 ChartJS.register(Title, Tooltip, Legend, LineElement, LinearScale, PointElement, CategoryScale, Filler);
 
