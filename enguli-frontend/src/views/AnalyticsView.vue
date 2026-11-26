@@ -23,6 +23,20 @@
           </option>
         </select>
       </div>
+
+      <!-- Real-Time Node Connectivity Status -->
+      <div v-if="activeStation" class="node-status-panel">
+        <span
+            class="status-badge"
+            :class="isStationOnline(activeStation) ? 'status-online' : 'status-unavailable'"
+        >
+          <span class="status-dot"></span>
+          {{ getStationStatusLabel(activeStation) }}
+        </span>
+        <span class="last-heartbeat-text">
+          Last ping: {{ formatLastSeen(activeStation.last_seen) }}
+        </span>
+      </div>
     </div>
 
     <!-- Stats Summary Strip (2-col on mobile, 4-col on desktop) -->
@@ -77,7 +91,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { Line } from 'vue-chartjs';
 import {
   Chart as ChartJS,
@@ -91,44 +105,55 @@ import {
   Filler
 } from 'chart.js';
 import api from "../api";
+import { useStationStatus } from "../composables/useStationStatus";
 
 ChartJS.register(Title, Tooltip, Legend, LineElement, LinearScale, PointElement, CategoryScale, Filler);
 
-const loaded = ref(false);
-const stations = ref([]);
-const selectedStationId = ref(null);
-const activeStationDetails = ref({ code: '---' });
-const metrics = ref({ avg: '0.00', min: '0.00', max: '0.00' });
+// Live polling composable (polls /api/stations/ every 15s + 1s local clock check)
+const {
+  stations,
+  loading: stationsLoading,
+  isStationOnline,
+  getStationStatusLabel,
+  formatLastSeen
+} = useStationStatus(15000);
 
+const loaded = ref(false);
+const selectedStationId = ref(null);
+const metrics = ref({ avg: '0.00', min: '0.00', max: '0.00' });
 const chartData = ref({ labels: [], datasets: [] });
 const chartOptions = ref({});
 
-const initAnalytics = async () => {
+let telemetryRefreshTimer = null;
+
+// Dynamically binds to the live-polled station object
+const activeStation = computed(() => {
+  return stations.value.find(s => s.id === selectedStationId.value) || null;
+});
+
+const activeStationDetails = computed(() => {
+  return {
+    code: activeStation.value?.station_code || '---'
+  };
+});
+
+// Automatically select the first station once useStationStatus loads
+watch(
+    stations,
+    async (newStations) => {
+      if (newStations.length > 0 && !selectedStationId.value) {
+        selectedStationId.value = newStations[0].id;
+        await fetchStationData(selectedStationId.value);
+      } else if (!stationsLoading.value && newStations.length === 0) {
+        loaded.value = true;
+      }
+    },
+    { immediate: true }
+);
+
+const fetchStationData = async (stationId, silent = false) => {
+  if (!silent) loaded.value = false;
   try {
-    const res = await api.getStations();
-    const data = res.data;
-    stations.value = data?.results || (Array.isArray(data) ? data : []);
-
-    if (stations.value.length > 0) {
-      selectedStationId.value = stations.value[0].id;
-      await fetchStationData(selectedStationId.value);
-    } else {
-      loaded.value = true;
-    }
-  } catch (error) {
-    console.error("Hydrological initialization failure:", error);
-    loaded.value = true;
-  }
-};
-
-const fetchStationData = async (stationId) => {
-  loaded.value = false;
-  try {
-    const matchedStation = stations.value.find(s => s.id === stationId);
-    if (matchedStation) {
-      activeStationDetails.value = { code: matchedStation.station_code };
-    }
-
     // Uses centralized api client which manages baseURL and auth headers
     const res = await api.getStationAnalytics(stationId);
     const data = res.data;
@@ -183,8 +208,10 @@ const fetchStationData = async (stationId) => {
     loaded.value = true;
   } catch (error) {
     console.error("Error querying station telemetry parameters:", error);
-    metrics.value = { avg: '0.00', min: '0.00', max: '0.00' };
-    setupChartEngine([], []);
+    if (!silent) {
+      metrics.value = { avg: '0.00', min: '0.00', max: '0.00' };
+      setupChartEngine([], []);
+    }
     loaded.value = true;
   }
 };
@@ -269,7 +296,16 @@ const setupChartEngine = (labels, values) => {
 };
 
 onMounted(() => {
-  initAnalytics();
+  // Silently refresh chart data every 30s so new telemetry points appear live
+  telemetryRefreshTimer = setInterval(() => {
+    if (selectedStationId.value) {
+      fetchStationData(selectedStationId.value, true);
+    }
+  }, 30000);
+});
+
+onUnmounted(() => {
+  if (telemetryRefreshTimer) clearInterval(telemetryRefreshTimer);
 });
 </script>
 
@@ -300,17 +336,26 @@ onMounted(() => {
   margin: 0.25rem 0 0 0;
 }
 
-/* Controls Dropdown */
+/* Controls Dropdown & Live Status Bar */
 .analytics-controls {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .analytics-controls {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
 }
 
 .control-group {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  width: 100%;
   max-width: 380px;
 }
 
@@ -336,6 +381,71 @@ onMounted(() => {
 
 .station-dropdown-select:focus {
   border-color: #52796f;
+}
+
+/* Real-Time Node Status Pill */
+.node-status-panel {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.45rem 0.75rem;
+  background-color: #fbfaf8;
+  border: 1px solid #e7e3dc;
+  border-radius: 8px;
+  align-self: flex-start;
+}
+
+@media (min-width: 640px) {
+  .node-status-panel {
+    align-self: flex-end;
+  }
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.status-online {
+  background-color: #e4ede9;
+  color: #385a50;
+}
+
+.status-online .status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #52796f;
+  animation: pulseDot 1.6s infinite;
+}
+
+.status-unavailable {
+  background-color: #f9e6e4;
+  color: #9e2a2b;
+}
+
+.status-unavailable .status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #b9383a;
+}
+
+.last-heartbeat-text {
+  font-size: 0.75rem;
+  color: #78716c;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
 }
 
 /* Stats Summary Strip */
