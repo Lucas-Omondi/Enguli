@@ -33,8 +33,12 @@ export function useStationStatus(pollIntervalMs = 15000) {
     const formatLastSeen = (lastSeen) => {
         if (!lastSeen) return 'Never connected'
         const diffSec = Math.max(0, Math.floor((now.value - new Date(lastSeen).getTime()) / 1000))
-        if (diffSec < 60) return `\${diffSec}s ago`
-        if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m${diffSec % 60}s ago`
+        if (diffSec < 60) return `${diffSec}s ago`
+        if (diffSec < 3600) {
+            const mins = Math.floor(diffSec / 60)
+            const secs = diffSec % 60
+            return `${mins}m ${secs}s ago`
+        }
         return new Date(lastSeen).toLocaleString()
     }
 
