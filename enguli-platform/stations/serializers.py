@@ -17,7 +17,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'profile']
 
 class StationSerializer(serializers.ModelSerializer):
-
+    is_online = serializers.BooleanField()
+    connection_status = serializers.ReadOnlyField()
     sensor_count = serializers.SerializerMethodField()
 
     class Meta:
@@ -30,7 +31,11 @@ class StationSerializer(serializers.ModelSerializer):
             'longitude',
             'location_description',
             'status',
+            'last_seen',
+            'offline_threshold_seconds',
+            'connection_status',
             'created_at',
+            'updated_at',
             'sensor_count'
         ]
 

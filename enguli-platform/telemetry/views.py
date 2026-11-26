@@ -9,6 +9,7 @@ from stations.models import Sensor, Station
 from .models import SensorReading
 from .serializers import SensorIngestSerializer, SensorReadingSerializer
 from alerts.services import generate_alert
+from django.utils import timezone
 
 
 class TelemetryIngestView(APIView):
@@ -83,11 +84,25 @@ class TelemetryIngestView(APIView):
                 signal_strength=data.get('signal_strength'),
             )
 
-            # 5. Update sensor diagnostics safely
+            # 5. Update station heartbeat & sensor diagnostics safely
+            active_station.last_seen = timezone.now()
+            try:
+                active_station.save(update_fields=['last_seen'])
+            except Exception:
+                active_station.save()
+
+            sensor_update_fields = []
             if data.get('battery_level') is not None and hasattr(sensor, 'battery_level'):
                 sensor.battery_level = data['battery_level']
+                sensor_update_fields.append('battery_level')
+
+            if hasattr(sensor, 'connectivity_status') and not sensor.connectivity_status:
+                sensor.connectivity_status = True
+                sensor_update_fields.append('connectivity_status')
+
+            if sensor_update_fields:
                 try:
-                    sensor.save(update_fields=['battery_level'])
+                    sensor.save(update_fields=sensor_update_fields)
                 except Exception:
                     sensor.save()
 
@@ -185,3 +200,46 @@ class ExportTelemetryCSVView(APIView):
             ])
 
         return response
+
+
+class StationHeartbeatView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        stn_id = request.data.get("station_id")
+        stn_code = request.data.get("station_code")
+        serial = request.data.get("serial_number")
+
+        target_station = None
+        if stn_id is not None:
+            target_station = Station.objects.filter(id=stn_id).first()
+
+        if not target_station and stn_code:
+            target_station = Station.objects.filter(station_code__iexact=str(stn_code).strip()).first()
+
+        if not target_station and serial:
+            sensor = Sensor.objects.select_related('station').filter(serial_number=serial).first()
+            if sensor:
+                target_station = sensor.station
+
+        station = target_station or Station.objects.first()
+
+        if not station:
+            return Response(
+                {"error": "Station not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        station.last_seen = timezone.now()
+        station.save(update_fields=["last_seen"])
+
+        return Response(
+            {
+                "status": "alive",
+                "station_id": station.id,
+                "station_code": station.station_code,
+                "connection_status": station.connection_status,
+                "last_seen": station.last_seen,
+            },
+            status=status.HTTP_200_OK,
+        )
