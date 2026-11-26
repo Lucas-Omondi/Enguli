@@ -3,6 +3,7 @@ from .models import Station, Sensor
 from django.contrib.auth.models import User
 from accounts.models import UserProfile
 
+
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
@@ -16,8 +17,9 @@ class UserDetailSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'profile']
 
+
 class StationSerializer(serializers.ModelSerializer):
-    is_online = serializers.BooleanField()
+    is_online = serializers.BooleanField(read_only=True)
     connection_status = serializers.ReadOnlyField()
     sensor_count = serializers.SerializerMethodField()
 
@@ -33,6 +35,7 @@ class StationSerializer(serializers.ModelSerializer):
             'status',
             'last_seen',
             'offline_threshold_seconds',
+            'is_online',
             'connection_status',
             'created_at',
             'updated_at',
@@ -42,8 +45,8 @@ class StationSerializer(serializers.ModelSerializer):
     def get_sensor_count(self, obj):
         return obj.sensors.count()
 
-class SensorSerializer(serializers.ModelSerializer):
 
+class SensorSerializer(serializers.ModelSerializer):
     station_code = serializers.CharField(
         source='station.station_code',
         read_only=True
