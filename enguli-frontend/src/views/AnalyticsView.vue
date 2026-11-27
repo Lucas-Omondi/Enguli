@@ -47,15 +47,15 @@
       </div>
       <div class="stat-box-mini">
         <span class="stat-box-label">Average Water Table</span>
-        <span class="stat-box-value">{{ metrics.avg }}m</span>
+        <span class="stat-box-value">{{ formatMetricLength(metrics.avg) }}</span>
       </div>
       <div class="stat-box-mini">
         <span class="stat-box-label">Historical Min (Drawdown)</span>
-        <span class="stat-box-value text-amber">{{ metrics.min }}m</span>
+        <span class="stat-box-value text-amber">{{ formatMetricLength(metrics.min) }}</span>
       </div>
       <div class="stat-box-mini">
         <span class="stat-box-label">Historical Max (Recharge)</span>
-        <span class="stat-box-value text-sage">{{ metrics.max }}m</span>
+        <span class="stat-box-value text-sage">{{ formatMetricLength(metrics.max) }}</span>
       </div>
     </div>
 
@@ -105,7 +105,7 @@ import {
   Filler
 } from 'chart.js';
 import api from "../api";
-import { useStationStatus } from "../composables/useStationStatus";
+import { useStationStatus, formatMetricLength } from "../composables/useStationStatus";
 
 ChartJS.register(Title, Tooltip, Legend, LineElement, LinearScale, PointElement, CategoryScale, Filler);
 
@@ -120,7 +120,7 @@ const {
 
 const loaded = ref(false);
 const selectedStationId = ref(null);
-const metrics = ref({ avg: '0.00', min: '0.00', max: '0.00' });
+const metrics = ref({ avg: null, min: null, max: null });
 const chartData = ref({ labels: [], datasets: [] });
 const chartOptions = ref({});
 
@@ -172,18 +172,20 @@ const fetchStationData = async (stationId, silent = false) => {
       chronologicalLogs.forEach((entry) => {
         if (entry.water_level !== null && entry.water_level !== undefined) {
           const val = Number(entry.water_level);
-          waterLevelValues.push(Number(val.toFixed(3)));
+          if (!Number.isNaN(val)) {
+            waterLevelValues.push(Number(val.toFixed(4)));
 
-          total += val;
-          if (val < minVal) minVal = val;
-          if (val > maxVal) maxVal = val;
+            total += val;
+            if (val < minVal) minVal = val;
+            if (val > maxVal) maxVal = val;
 
-          if (entry.timestamp) {
-            const date = new Date(entry.timestamp);
-            const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            timelineLabels.push(timeStr);
-          } else {
-            timelineLabels.push(`Log #${entry.id}`);
+            if (entry.timestamp) {
+              const date = new Date(entry.timestamp);
+              const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              timelineLabels.push(timeStr);
+            } else {
+              timelineLabels.push(`Log #${entry.id}`);
+            }
           }
         }
       });
@@ -191,17 +193,17 @@ const fetchStationData = async (stationId, silent = false) => {
       const count = waterLevelValues.length;
       if (count > 0) {
         metrics.value = {
-          avg: (total / count).toFixed(2),
-          min: minVal.toFixed(2),
-          max: maxVal.toFixed(2)
+          avg: total / count,
+          min: minVal,
+          max: maxVal
         };
       } else {
-        metrics.value = { avg: '0.00', min: '0.00', max: '0.00' };
+        metrics.value = { avg: null, min: null, max: null };
       }
 
       setupChartEngine(timelineLabels, waterLevelValues);
     } else {
-      metrics.value = { avg: '0.00', min: '0.00', max: '0.00' };
+      metrics.value = { avg: null, min: null, max: null };
       setupChartEngine([], []);
     }
 
@@ -209,7 +211,7 @@ const fetchStationData = async (stationId, silent = false) => {
   } catch (error) {
     console.error("Error querying station telemetry parameters:", error);
     if (!silent) {
-      metrics.value = { avg: '0.00', min: '0.00', max: '0.00' };
+      metrics.value = { avg: null, min: null, max: null };
       setupChartEngine([], []);
     }
     loaded.value = true;
@@ -227,7 +229,7 @@ const setupChartEngine = (labels, values) => {
     labels: labels,
     datasets: [
       {
-        label: 'Calibrated Water Table Depth (m)',
+        label: 'Calibrated Water Table Depth',
         data: values,
         borderColor: '#52796f',
         borderWidth: 2,
@@ -267,7 +269,7 @@ const setupChartEngine = (labels, values) => {
         cornerRadius: 6,
         displayColors: false,
         callbacks: {
-          label: (context) => ` Water Level: ${context.parsed.y} m`
+          label: (context) => ` Water Level: ${formatMetricLength(context.parsed.y)}`
         }
       }
     },
@@ -283,11 +285,11 @@ const setupChartEngine = (labels, values) => {
       },
       y: {
         suggestedMin: 0,
-        suggestedMax: 3.5,
+        suggestedMax: 0.4,
         ticks: {
           color: '#8c857b',
           font: { size: 10 },
-          callback: (value) => `${value}m`
+          callback: (value) => formatMetricLength(value, 0, 2)
         },
         grid: { color: '#ece8e1' }
       }

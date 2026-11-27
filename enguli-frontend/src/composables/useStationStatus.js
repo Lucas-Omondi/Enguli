@@ -1,6 +1,17 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import api from '../api'
 
+export function formatMetricLength(valueInMeters, decimalsCm = 1, decimalsM = 2) {
+    if (valueInMeters === null || valueInMeters === undefined || Number.isNaN(Number(valueInMeters))) {
+        return '--'
+    }
+    const num = Number(valueInMeters)
+    if (Math.abs(num) < 1) {
+        return `${(num * 100).toFixed(decimalsCm)} cm`
+    }
+    return `${num.toFixed(decimalsM)} m`
+}
+
 export function useStationStatus(pollIntervalMs = 15000) {
     const stations = ref([])
     const now = ref(Date.now())
@@ -43,6 +54,7 @@ export function useStationStatus(pollIntervalMs = 15000) {
     }
 
     onMounted(async () => {
+        now.value = Date.now()
         loading.value = true
         await fetchStations()
         loading.value = false
@@ -65,5 +77,6 @@ export function useStationStatus(pollIntervalMs = 15000) {
         isStationOnline,
         getStationStatusLabel,
         formatLastSeen,
+        formatMetricLength,
     }
 }

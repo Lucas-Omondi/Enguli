@@ -49,7 +49,7 @@ class TelemetryIngestView(APIView):
                     serial_number=serial,
                     defaults={
                         'station': station,
-                        'calibration_offset': 3.0,
+                        'calibration_offset': 0.37,
                     }
                 )
             except Exception as sensor_err:
@@ -70,9 +70,9 @@ class TelemetryIngestView(APIView):
             active_station = sensor.station or station
 
             # 3. Calibration: Water Depth = Sensor Mounting Datum Offset - Measured Distance
-            offset = getattr(sensor, 'calibration_offset', 3.0)
+            offset = getattr(sensor, 'calibration_offset', 0.37)
             if offset is None:
-                offset = 3.0
+                offset = 0.37
             calibrated_depth = offset - raw_distance
 
             # 4. Save Reading Record
